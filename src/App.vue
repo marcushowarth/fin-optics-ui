@@ -2,6 +2,7 @@
 import { useProjectionStore } from './stores/projection'
 import ItemForm from './components/ItemForm.vue'
 import ItemList from './components/ItemList.vue'
+import ProjectionView from './components/ProjectionView.vue'
 
 const store = useProjectionStore()
 </script>
@@ -21,7 +22,7 @@ const store = useProjectionStore()
           </button>
         </div>
         <p v-if="store.error" class="error">{{ store.error }}</p>
-        <pre v-if="store.result" class="result">{{ JSON.stringify(store.result.nominal.netWorth, null, 2) }}</pre>
+        <ProjectionView />
       </div>
     </div>
   </div>
@@ -49,5 +50,4 @@ h1 { margin: 0 0 0.25rem; }
 }
 .run-btn:disabled { background: #999; cursor: not-allowed; }
 .error { color: #c00; font-size: 0.9rem; }
-.result { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 1rem; font-size: 0.8rem; overflow: auto; max-height: 400px; }
 </style>

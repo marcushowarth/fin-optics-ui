@@ -17,6 +17,7 @@ export const useProjectionStore = defineStore('projection', () => {
   const result = ref<ProjectionResponse | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const editingIndex = ref<number | null>(null)
 
   const hasWarnings = computed(() => (result.value?.nominal.warnings.length ?? 0) > 0)
 
@@ -43,9 +44,23 @@ export const useProjectionStore = defineStore('projection', () => {
     items.value.push(item)
   }
 
-  function removeItem(index: number) {
-    items.value.splice(index, 1)
+  function updateItem(index: number, item: FinancialItem) {
+    items.value[index] = item
   }
 
-  return { items, scenarios, from, to, base, result, loading, error, hasWarnings, runProjection, addItem, removeItem }
+  function removeItem(index: number) {
+    items.value.splice(index, 1)
+    if (editingIndex.value === index) editingIndex.value = null
+    else if (editingIndex.value !== null && editingIndex.value > index) editingIndex.value--
+  }
+
+  function startEdit(index: number) {
+    editingIndex.value = index
+  }
+
+  function cancelEdit() {
+    editingIndex.value = null
+  }
+
+  return { items, scenarios, from, to, base, result, loading, error, editingIndex, hasWarnings, runProjection, addItem, updateItem, removeItem, startEdit, cancelEdit }
 })

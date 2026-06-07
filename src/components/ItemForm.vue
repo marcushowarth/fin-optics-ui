@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import MonthPicker from './MonthPicker.vue'
 import type {
@@ -49,6 +49,52 @@ const TYPES: { value: ItemType; label: string }[] = [
   { value: 'liability',    label: 'Liability' },
 ]
 
+const NAME_PLACEHOLDERS: Record<ItemType, string> = {
+  'asset':        'e.g. Property',
+  'investment':   'e.g. Stocks & Shares ISA',
+  'bank-account': 'e.g. Monzo',
+  'income':       'e.g. Main salary',
+  'expenditure':  'e.g. Rent',
+  'liability':    'e.g. Mortgage',
+}
+
+// --- Wizard -----------------------------------------------------------------
+// Grouped steps: basics → timing → amounts. Bank Account has no timing fields,
+// so it skips that step. Because timing is entered before amounts, every date
+// field can default forward off `start` (see MonthPicker :min) — no disabled
+// guards needed; the engine validates the rest by running the projection.
+
+const step = ref(0)
+
+const steps = computed<string[]>(() =>
+  type.value === 'bank-account' ? ['basics', 'amounts'] : ['basics', 'timing', 'amounts'],
+)
+
+const currentStep = computed(() => steps.value[step.value])
+const isLast = computed(() => step.value === steps.value.length - 1)
+const isEditing = computed(() => store.editingIndex !== null)
+
+// Only basics needs a guard (a name); timing/amounts advance freely.
+const canAdvance = computed(() =>
+  currentStep.value === 'basics' ? !!name.value.trim() : true,
+)
+
+watch(type, () => { step.value = 0 })
+
+function next() {
+  if (canAdvance.value && step.value < steps.value.length - 1) step.value++
+}
+
+function back() {
+  if (step.value > 0) step.value--
+}
+
+const STEP_TITLES: Record<string, string> = {
+  basics:  'Type & name',
+  timing:  'Timing',
+  amounts: 'Amounts',
+}
+
 const isValid = computed(() => {
   if (!name.value.trim()) return false
   switch (type.value) {
@@ -82,6 +128,61 @@ function reset() {
   balance.value = ''
   annualInterestRate.value = ''
   monthlyRepayment.value = ''
+  step.value = 0
+}
+
+// Repopulate the form from an existing item, then walk it through the carousel
+// again from step 1. Optional fields fall back to the empty/unset state.
+function load(item: FinancialItem) {
+  reset()
+  type.value = item.type
+  name.value = item.name
+  description.value = item.description
+  switch (item.type) {
+    case 'asset':
+      start.value = item.start
+      startValue.value = item.startValue
+      annualGrowthRate.value = item.annualGrowthRate
+      saleDate.value = item.saleDate ?? ''
+      break
+    case 'investment':
+      start.value = item.start
+      startValue.value = item.startValue
+      annualGrowthRate.value = item.annualGrowthRate
+      drawdownStart.value = item.drawdownStart ?? ''
+      monthlyDrawdown.value = item.monthlyDrawdown ?? ''
+      break
+    case 'bank-account':
+      startBalance.value = item.startBalance
+      break
+    case 'income':
+      start.value = item.start
+      end.value = item.end ?? ''
+      monthlyAmount.value = item.monthlyAmount
+      annualGrowthRate.value = item.annualGrowthRate
+      break
+    case 'expenditure':
+      start.value = item.start
+      end.value = item.end ?? ''
+      monthlyAmount.value = item.monthlyAmount
+      break
+    case 'liability':
+      start.value = item.start
+      balance.value = item.balance
+      annualInterestRate.value = item.annualInterestRate
+      monthlyRepayment.value = item.monthlyRepayment
+      break
+  }
+  step.value = 0
+}
+
+watch(() => store.editingIndex, (idx) => {
+  if (idx !== null) load(store.items[idx])
+})
+
+function cancel() {
+  store.cancelEdit()
+  reset()
 }
 
 function submit() {
@@ -124,78 +225,95 @@ function submit() {
       break
   }
 
-  store.addItem(item)
+  if (store.editingIndex !== null) {
+    store.updateItem(store.editingIndex, item)
+    store.cancelEdit()
+  } else {
+    store.addItem(item)
+  }
   reset()
 }
 </script>
 
 <template>
   <form class="item-form" @submit.prevent="submit">
-    <h2>Add Item</h2>
+    <header class="wizard-head">
+      <h2>{{ isEditing ? 'Edit Item' : 'Add Item' }}</h2>
+      <span class="progress">Step {{ step + 1 }}/{{ steps.length }} · {{ STEP_TITLES[currentStep] }}</span>
+    </header>
 
-    <div class="row">
-      <label>Type</label>
-      <select v-model="type">
-        <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-      </select>
+    <!-- Step: basics -->
+    <div v-if="currentStep === 'basics'" class="step">
+      <div class="row">
+        <label>Type</label>
+        <select v-model="type">
+          <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Name</label>
+        <input v-model="name" type="text" :placeholder="NAME_PLACEHOLDERS[type]" @keydown.enter.prevent="next" />
+      </div>
+      <div class="row">
+        <label>Description</label>
+        <input v-model="description" type="text" placeholder="Optional" />
+      </div>
     </div>
 
-    <div class="row">
-      <label>Name</label>
-      <input v-model="name" type="text" placeholder="e.g. Main salary" required />
+    <!-- Step: timing -->
+    <div v-else-if="currentStep === 'timing'" class="step">
+      <template v-if="type === 'asset'">
+        <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
+        <div class="row"><label>Sale Date</label><MonthPicker v-model="saleDate" :min="start" /></div>
+      </template>
+      <template v-else-if="type === 'investment'">
+        <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
+        <div class="row"><label>Drawdown Start</label><MonthPicker v-model="drawdownStart" :min="start" /></div>
+      </template>
+      <template v-else-if="type === 'income' || type === 'expenditure'">
+        <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
+        <div class="row"><label>End</label><MonthPicker v-model="end" :min="start" /></div>
+      </template>
+      <template v-else-if="type === 'liability'">
+        <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
+      </template>
     </div>
 
-    <div class="row">
-      <label>Description</label>
-      <input v-model="description" type="text" placeholder="Optional" />
+    <!-- Step: amounts -->
+    <div v-else class="step">
+      <template v-if="type === 'asset'">
+        <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+      </template>
+      <template v-else-if="type === 'investment'">
+        <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" step="0.01" /></div>
+      </template>
+      <template v-else-if="type === 'bank-account'">
+        <div class="row"><label>Start Balance (£)</label><input v-model.number="startBalance" type="number" step="0.01" /></div>
+      </template>
+      <template v-else-if="type === 'income'">
+        <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+      </template>
+      <template v-else-if="type === 'expenditure'">
+        <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
+      </template>
+      <template v-else-if="type === 'liability'">
+        <div class="row"><label>Balance (£)</label><input v-model.number="balance" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Annual Interest Rate</label><input v-model.number="annualInterestRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Monthly Repayment (£)</label><input v-model.number="monthlyRepayment" type="number" min="0" step="0.01" /></div>
+      </template>
     </div>
 
-    <!-- Asset -->
-    <template v-if="type === 'asset'">
-      <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
-      <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" required /></div>
-      <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" required /></div>
-      <div class="row"><label>Sale Date</label><MonthPicker v-model="saleDate" :min="start" :disabled="!start" /></div>
-    </template>
-
-    <!-- Investment -->
-    <template v-else-if="type === 'investment'">
-      <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
-      <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" required /></div>
-      <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" required /></div>
-      <div class="row"><label>Drawdown Start</label><MonthPicker v-model="drawdownStart" :min="start" :disabled="!start" /></div>
-      <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" step="0.01" /></div>
-    </template>
-
-    <!-- Bank Account -->
-    <template v-else-if="type === 'bank-account'">
-      <div class="row"><label>Start Balance (£)</label><input v-model.number="startBalance" type="number" step="0.01" required /></div>
-    </template>
-
-    <!-- Income -->
-    <template v-else-if="type === 'income'">
-      <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
-      <div class="row"><label>End</label><MonthPicker v-model="end" :min="start" :disabled="!start" /></div>
-      <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" required /></div>
-      <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" required /></div>
-    </template>
-
-    <!-- Expenditure -->
-    <template v-else-if="type === 'expenditure'">
-      <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
-      <div class="row"><label>End</label><MonthPicker v-model="end" :min="start" :disabled="!start" /></div>
-      <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" required /></div>
-    </template>
-
-    <!-- Liability -->
-    <template v-else-if="type === 'liability'">
-      <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
-      <div class="row"><label>Balance (£)</label><input v-model.number="balance" type="number" min="0" step="0.01" required /></div>
-      <div class="row"><label>Annual Interest Rate</label><input v-model.number="annualInterestRate" type="number" step="0.001" required /></div>
-      <div class="row"><label>Monthly Repayment (£)</label><input v-model.number="monthlyRepayment" type="number" min="0" step="0.01" required /></div>
-    </template>
-
-    <button type="submit" :disabled="!isValid">Add</button>
+    <div class="nav">
+      <button v-if="isEditing" type="button" class="reset" @click="cancel">Cancel</button>
+      <button v-else type="button" class="reset" @click="reset">Reset</button>
+      <button type="button" class="ghost" :disabled="step === 0" @click="back">← Back</button>
+      <button v-if="!isLast" type="button" class="next" :disabled="!canAdvance" @click="next">Next →</button>
+      <button v-else type="submit" class="add" :disabled="!isValid">{{ isEditing ? 'Save' : 'Add' }}</button>
+    </div>
   </form>
 </template>
 
@@ -207,7 +325,15 @@ function submit() {
   padding: 1.5rem;
   max-width: 480px;
 }
-h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+.wizard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+h2 { margin: 0; font-size: 1.1rem; }
+.progress { font-size: 0.75rem; color: #999; }
+.step { min-height: 132px; }
 .row {
   display: grid;
   grid-template-columns: 160px 1fr;
@@ -224,15 +350,25 @@ input, select {
   width: 100%;
   box-sizing: border-box;
 }
-button {
-  margin-top: 0.8rem;
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.nav button {
   padding: 0.45rem 1.2rem;
-  background: #333;
-  color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
 }
-button:disabled { background: #999; cursor: not-allowed; }
+.nav .ghost { margin-left: auto; }
+.nav .next, .nav .add { color: #fff; }
+.nav .next { background: #333; }
+.nav .add { background: #1a5c3a; }
+.nav .ghost { background: #f0f0f0; color: #555; }
+.nav .reset { background: none; color: #999; padding-left: 0; }
+.nav .reset:hover { color: #c00; }
+.nav button:disabled { background: #eee; color: #bbb; cursor: not-allowed; }
+.nav .next:disabled, .nav .add:disabled { background: #ccc; color: #fff; }
 </style>

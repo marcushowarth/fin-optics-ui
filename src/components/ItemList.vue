@@ -18,11 +18,12 @@ const TYPE_LABELS: Record<string, string> = {
     <h2>Items ({{ store.items.length }})</h2>
     <p v-if="store.items.length === 0" class="empty">No items yet.</p>
     <ul v-else>
-      <li v-for="(item, i) in store.items" :key="i">
+      <li v-for="(item, i) in store.items" :key="i" :class="{ editing: store.editingIndex === i }">
         <span class="type-badge">{{ TYPE_LABELS[item.type] }}</span>
         <span class="name">{{ item.name }}</span>
         <span v-if="item.description" class="desc">— {{ item.description }}</span>
-        <button @click="store.removeItem(i)" aria-label="Remove">✕</button>
+        <button class="edit" @click="store.startEdit(i)" aria-label="Edit">✎</button>
+        <button class="remove" @click="store.removeItem(i)" aria-label="Remove">✕</button>
       </li>
     </ul>
   </div>
@@ -47,6 +48,7 @@ li {
   font-size: 0.9rem;
 }
 li:last-child { border-bottom: none; }
+li.editing { background: #eef6f0; }
 .type-badge {
   background: #eee;
   border-radius: 3px;
@@ -58,7 +60,6 @@ li:last-child { border-bottom: none; }
 .name { font-weight: 500; }
 .desc { color: #777; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 button {
-  margin-left: auto;
   background: none;
   border: none;
   color: #999;
@@ -67,5 +68,7 @@ button {
   padding: 0.1rem 0.3rem;
   flex-shrink: 0;
 }
-button:hover { color: #c00; }
+.edit { margin-left: auto; }
+.edit:hover { color: #1a5c3a; }
+.remove:hover { color: #c00; }
 </style>

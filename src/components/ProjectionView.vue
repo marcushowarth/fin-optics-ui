@@ -48,14 +48,22 @@ const cashSeries = computed<Series[]>(() => {
       ⚠ Cash goes negative in {{ warnings.length }} month{{ warnings.length === 1 ? '' : 's' }} —
       first breach {{ firstBreach.month }} ({{ money(firstBreach.cashPosition) }})
     </p>
-    <ProjectionChart title="Net Worth" :months="months" :series="netWorthSeries" />
-    <ProjectionChart
-      title="Cash Position"
-      :months="months"
-      :series="cashSeries"
-      :warnings="warningMonths"
-      :zero-line="true"
-    />
+    <section class="chart-block">
+      <h3 class="chart-title">Net Worth</h3>
+      <p class="chart-sub">Everything you own minus everything you owe, projected over time.</p>
+      <ProjectionChart :months="months" :series="netWorthSeries" />
+    </section>
+
+    <section class="chart-block">
+      <h3 class="chart-title">Cash Position</h3>
+      <p class="chart-sub">Liquid cash running balance — red bands mark months it goes negative.</p>
+      <ProjectionChart
+        :months="months"
+        :series="cashSeries"
+        :warnings="warningMonths"
+        :zero-line="true"
+      />
+    </section>
   </div>
 </template>
 
@@ -78,4 +86,7 @@ const cashSeries = computed<Series[]>(() => {
   color: #a4232f;
   font-size: 0.85rem;
 }
+.chart-block { display: flex; flex-direction: column; }
+.chart-title { margin: 0; font-size: 1.05rem; }
+.chart-sub { margin: 0.15rem 0 0.4rem; color: #777; font-size: 0.8rem; }
 </style>

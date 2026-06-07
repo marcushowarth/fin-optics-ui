@@ -10,17 +10,38 @@ import { money } from '../format'
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, CanvasRenderer])
 
 const props = defineProps<{
-  title: string
-  months: string[]                                  // x-axis, 'YYYY-MM'
+  months: string[]                                  // 'YYYY-MM'
   series: { name: string; data: (number | null)[] }[]
   warnings?: string[]                               // months where cash is negative
   zeroLine?: boolean                                // draw a y=0 reference
 }>()
 
-// Collapse the breach months into contiguous [start, end] spans for shading.
+// 'YYYY-MM' → UTC timestamp at the first of that month (avoids TZ drift).
+function ts(month: string): number {
+  const [y, m] = month.split('-').map(Number)
+  return Date.UTC(y, m - 1, 1)
+}
+
+function nextMonth(month: string): number {
+  const [y, m] = month.split('-').map(Number)
+  return m === 12 ? Date.UTC(y + 1, 0, 1) : Date.UTC(y, m, 1)
+}
+
+const monthLabel = computed(() => new Map(props.months.map(m => [ts(m), m])))
+
+// Each series as [timestamp, value] pairs so the x-axis can be a real time axis.
+const timeSeries = computed(() =>
+  props.series.map(s => ({
+    name: s.name,
+    data: props.months.map((m, i) => [ts(m), s.data[i]] as [number, number | null]),
+  })),
+)
+
+// Contiguous breach runs as [start, endExclusive] timestamp spans, so even a
+// single-month breach renders a band with width.
 const warningRanges = computed(() => {
   const set = new Set(props.warnings ?? [])
-  const ranges: { xAxis: string }[][] = []
+  const ranges: { xAxis: number }[][] = []
   let runStart: string | null = null
   let prev: string | null = null
   for (const m of props.months) {
@@ -28,27 +49,26 @@ const warningRanges = computed(() => {
       if (runStart === null) runStart = m
       prev = m
     } else if (runStart !== null) {
-      ranges.push([{ xAxis: runStart }, { xAxis: prev! }])
+      ranges.push([{ xAxis: ts(runStart) }, { xAxis: nextMonth(prev!) }])
       runStart = null
     }
   }
-  if (runStart !== null) ranges.push([{ xAxis: runStart }, { xAxis: prev! }])
+  if (runStart !== null) ranges.push([{ xAxis: ts(runStart) }, { xAxis: nextMonth(prev!) }])
   return ranges
 })
 
 const option = computed(() => ({
-  title: { text: props.title, left: 0, textStyle: { fontSize: 14, fontWeight: 600 } },
   tooltip: {
     trigger: 'axis',
+    axisPointer: { label: { formatter: (p: { value: number }) => monthLabel.value.get(p.value) ?? '' } },
     valueFormatter: (v: number | null) => (v == null ? '—' : money(v)),
   },
   legend: { top: 0, right: 0 },
-  grid: { left: 56, right: 16, top: 44, bottom: 56 },
+  grid: { left: 64, right: 16, top: 32, bottom: 56 },
   xAxis: {
-    type: 'category',
-    data: props.months,
-    boundaryGap: false,
-    axisLabel: { formatter: (v: string) => (v.endsWith('-01') ? v.slice(0, 4) : '') },
+    type: 'time',
+    axisLabel: { formatter: { year: '{yyyy}', month: '{MMM}' } },
+    minInterval: 3600 * 1000 * 24 * 28,
   },
   yAxis: {
     type: 'value',
@@ -58,7 +78,7 @@ const option = computed(() => ({
     { type: 'inside' },
     { type: 'slider', height: 18, bottom: 16 },
   ],
-  series: props.series.map((s, i) => ({
+  series: timeSeries.value.map((s, i) => ({
     name: s.name,
     type: 'line',
     data: s.data,

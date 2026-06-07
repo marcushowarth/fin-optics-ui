@@ -131,6 +131,10 @@ function reset() {
   step.value = 0
 }
 
+// Stored rates are decimals (0.03); the form shows them as percentages (3).
+// Round to absorb float noise, e.g. 0.035 * 100 = 3.4999999999999996.
+const toPercent = (d: number) => Math.round(d * 1e6) / 1e4
+
 // Repopulate the form from an existing item, then walk it through the carousel
 // again from step 1. Optional fields fall back to the empty/unset state.
 function load(item: FinancialItem) {
@@ -142,13 +146,13 @@ function load(item: FinancialItem) {
     case 'asset':
       start.value = item.start
       startValue.value = item.startValue
-      annualGrowthRate.value = item.annualGrowthRate
+      annualGrowthRate.value = toPercent(item.annualGrowthRate)
       saleDate.value = item.saleDate ?? ''
       break
     case 'investment':
       start.value = item.start
       startValue.value = item.startValue
-      annualGrowthRate.value = item.annualGrowthRate
+      annualGrowthRate.value = toPercent(item.annualGrowthRate)
       drawdownStart.value = item.drawdownStart ?? ''
       monthlyDrawdown.value = item.monthlyDrawdown ?? ''
       break
@@ -159,7 +163,7 @@ function load(item: FinancialItem) {
       start.value = item.start
       end.value = item.end ?? ''
       monthlyAmount.value = item.monthlyAmount
-      annualGrowthRate.value = item.annualGrowthRate
+      annualGrowthRate.value = toPercent(item.annualGrowthRate)
       break
     case 'expenditure':
       start.value = item.start
@@ -169,7 +173,7 @@ function load(item: FinancialItem) {
     case 'liability':
       start.value = item.start
       balance.value = item.balance
-      annualInterestRate.value = item.annualInterestRate
+      annualInterestRate.value = toPercent(item.annualInterestRate)
       monthlyRepayment.value = item.monthlyRepayment
       break
   }
@@ -193,13 +197,13 @@ function submit() {
 
   switch (type.value) {
     case 'asset': {
-      const a: AssetItem = { ...base, type: 'asset', start: start.value, startValue: +startValue.value, annualGrowthRate: +annualGrowthRate.value }
+      const a: AssetItem = { ...base, type: 'asset', start: start.value, startValue: +startValue.value, annualGrowthRate: +annualGrowthRate.value / 100 }
       if (saleDate.value) a.saleDate = saleDate.value
       item = a
       break
     }
     case 'investment': {
-      const inv: InvestmentItem = { ...base, type: 'investment', start: start.value, startValue: +startValue.value, annualGrowthRate: +annualGrowthRate.value }
+      const inv: InvestmentItem = { ...base, type: 'investment', start: start.value, startValue: +startValue.value, annualGrowthRate: +annualGrowthRate.value / 100 }
       if (drawdownStart.value) inv.drawdownStart = drawdownStart.value
       if (monthlyDrawdown.value !== '') inv.monthlyDrawdown = +monthlyDrawdown.value
       item = inv
@@ -209,7 +213,7 @@ function submit() {
       item = { ...base, type: 'bank-account', startBalance: +startBalance.value } as BankAccountItem
       break
     case 'income': {
-      const inc: IncomeItem = { ...base, type: 'income', start: start.value, monthlyAmount: +monthlyAmount.value, annualGrowthRate: +annualGrowthRate.value }
+      const inc: IncomeItem = { ...base, type: 'income', start: start.value, monthlyAmount: +monthlyAmount.value, annualGrowthRate: +annualGrowthRate.value / 100 }
       if (end.value) inc.end = end.value
       item = inc
       break
@@ -221,7 +225,7 @@ function submit() {
       break
     }
     case 'liability':
-      item = { ...base, type: 'liability', start: start.value, balance: +balance.value, annualInterestRate: +annualInterestRate.value, monthlyRepayment: +monthlyRepayment.value } as LiabilityItem
+      item = { ...base, type: 'liability', start: start.value, balance: +balance.value, annualInterestRate: +annualInterestRate.value / 100, monthlyRepayment: +monthlyRepayment.value } as LiabilityItem
       break
   }
 
@@ -283,11 +287,11 @@ function submit() {
     <div v-else class="step">
       <template v-if="type === 'asset'">
         <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
-        <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.1" /></div>
       </template>
       <template v-else-if="type === 'investment'">
         <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
-        <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.1" /></div>
         <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" step="0.01" /></div>
       </template>
       <template v-else-if="type === 'bank-account'">
@@ -295,14 +299,14 @@ function submit() {
       </template>
       <template v-else-if="type === 'income'">
         <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
-        <div class="row"><label>Annual Growth Rate</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.1" /></div>
       </template>
       <template v-else-if="type === 'expenditure'">
         <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
       </template>
       <template v-else-if="type === 'liability'">
         <div class="row"><label>Balance (£)</label><input v-model.number="balance" type="number" min="0" step="0.01" /></div>
-        <div class="row"><label>Annual Interest Rate</label><input v-model.number="annualInterestRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Annual Interest Rate (%)</label><input v-model.number="annualInterestRate" type="number" step="0.1" /></div>
         <div class="row"><label>Monthly Repayment (£)</label><input v-model.number="monthlyRepayment" type="number" min="0" step="0.01" /></div>
       </template>
     </div>

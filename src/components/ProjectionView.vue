@@ -2,8 +2,13 @@
 import { computed } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import ProjectionChart from './ProjectionChart.vue'
+import { money } from '../format'
 
 const store = useProjectionStore()
+
+const warnings = computed(() => store.result?.nominal.warnings ?? [])
+const warningMonths = computed(() => warnings.value.map(w => w.month))
+const firstBreach = computed(() => warnings.value[0] ?? null)
 
 const months = computed(() => Object.keys(store.result?.nominal.netWorth ?? {}).sort())
 
@@ -39,8 +44,18 @@ const cashSeries = computed<Series[]>(() => {
 
 <template>
   <div v-if="store.result" class="charts">
+    <p v-if="firstBreach" class="solvency-warning">
+      ⚠ Cash goes negative in {{ warnings.length }} month{{ warnings.length === 1 ? '' : 's' }} —
+      first breach {{ firstBreach.month }} ({{ money(firstBreach.cashPosition) }})
+    </p>
     <ProjectionChart title="Net Worth" :months="months" :series="netWorthSeries" />
-    <ProjectionChart title="Cash Position" :months="months" :series="cashSeries" />
+    <ProjectionChart
+      title="Cash Position"
+      :months="months"
+      :series="cashSeries"
+      :warnings="warningMonths"
+      :zero-line="true"
+    />
   </div>
 </template>
 
@@ -53,5 +68,14 @@ const cashSeries = computed<Series[]>(() => {
   border: 1px solid #ddd;
   border-radius: 6px;
   padding: 1.25rem;
+}
+.solvency-warning {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: #fdecea;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  color: #a4232f;
+  font-size: 0.85rem;
 }
 </style>

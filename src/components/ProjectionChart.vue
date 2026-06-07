@@ -14,7 +14,15 @@ const props = defineProps<{
   series: { name: string; data: (number | null)[] }[]
   warnings?: string[]                               // months where cash is negative
   zeroLine?: boolean                                // draw a y=0 reference
+  primaryOnly?: boolean                             // start with only the first series visible
 }>()
+
+// Show just the first series (Nominal) on load; the rest are opt-in via the legend.
+const legendSelected = computed(() =>
+  props.primaryOnly
+    ? Object.fromEntries(props.series.map((s, i) => [s.name, i === 0]))
+    : undefined,
+)
 
 // 'YYYY-MM' → UTC timestamp at the first of that month (avoids TZ drift).
 function ts(month: string): number {
@@ -63,7 +71,7 @@ const option = computed(() => ({
     axisPointer: { label: { formatter: (p: { value: number }) => monthLabel.value.get(p.value) ?? '' } },
     valueFormatter: (v: number | null) => (v == null ? '—' : money(v)),
   },
-  legend: { top: 0, right: 0 },
+  legend: { top: 0, right: 0, selected: legendSelected.value },
   grid: { left: 64, right: 16, top: 32, bottom: 56 },
   xAxis: {
     type: 'time',

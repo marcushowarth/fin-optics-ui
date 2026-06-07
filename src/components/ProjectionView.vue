@@ -48,10 +48,18 @@ const cashSeries = computed<Series[]>(() => {
       ⚠ Cash goes negative in {{ warnings.length }} month{{ warnings.length === 1 ? '' : 's' }} —
       first breach {{ firstBreach.month }} ({{ money(firstBreach.cashPosition) }})
     </p>
+    <p class="scenario-note">
+      <strong>Nominal</strong> is the projected value in the pounds of each future year.
+      <strong>Real</strong> lines restate it in <em>today's</em> money after inflation, under three
+      assumptions — <strong>low</strong>, <strong>base</strong> and <strong>high</strong> annual
+      inflation — so you can see how much spending power the headline figure really holds.
+      Charts open on Nominal only; click a name in the legend to add a scenario.
+    </p>
+
     <section class="chart-block">
       <h3 class="chart-title">Net Worth</h3>
       <p class="chart-sub">Everything you own minus everything you owe, projected over time.</p>
-      <ProjectionChart :months="months" :series="netWorthSeries" />
+      <ProjectionChart :months="months" :series="netWorthSeries" :primary-only="true" />
     </section>
 
     <section class="chart-block">
@@ -62,6 +70,7 @@ const cashSeries = computed<Series[]>(() => {
         :series="cashSeries"
         :warnings="warningMonths"
         :zero-line="true"
+        :primary-only="true"
       />
     </section>
   </div>
@@ -85,6 +94,16 @@ const cashSeries = computed<Series[]>(() => {
   border-radius: 4px;
   color: #a4232f;
   font-size: 0.85rem;
+}
+.scenario-note {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: #f4f7fa;
+  border: 1px solid #e1e8ef;
+  border-radius: 4px;
+  color: #555;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 .chart-block { display: flex; flex-direction: column; }
 .chart-title { margin: 0; font-size: 1.05rem; }

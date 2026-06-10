@@ -3,6 +3,7 @@ import { useProjectionStore } from './stores/projection'
 import ItemForm from './components/ItemForm.vue'
 import ItemList from './components/ItemList.vue'
 import ProjectionView from './components/ProjectionView.vue'
+import AppFooter from './components/AppFooter.vue'
 
 const store = useProjectionStore()
 </script>
@@ -25,6 +26,8 @@ const store = useProjectionStore()
         <ProjectionView />
       </div>
     </div>
+
+    <AppFooter />
   </div>
 </template>
 

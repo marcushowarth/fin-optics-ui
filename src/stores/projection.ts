@@ -69,6 +69,22 @@ export const useProjectionStore = defineStore('projection', () => {
     else if (editingIndex.value !== null && editingIndex.value > index) editingIndex.value--
   }
 
+  // Reorder an item; the array order is the plan order, so it persists and
+  // exports automatically. Keep the edit cursor pointed at the same item.
+  function moveItem(from: number, to: number) {
+    if (to < 0 || to >= items.value.length || from === to) return
+    const [moved] = items.value.splice(from, 1)
+    items.value.splice(to, 0, moved)
+    const e = editingIndex.value
+    if (e !== null) {
+      if (e === from) editingIndex.value = to
+      else {
+        const afterRemoval = e > from ? e - 1 : e
+        editingIndex.value = afterRemoval >= to ? afterRemoval + 1 : afterRemoval
+      }
+    }
+  }
+
   function startEdit(index: number) {
     editingIndex.value = index
   }
@@ -127,5 +143,5 @@ export const useProjectionStore = defineStore('projection', () => {
     }
   }, { deep: true })
 
-  return { items, scenarios, from, to, base, result, loading, error, editingIndex, hasWarnings, runProjection, addItem, updateItem, removeItem, startEdit, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
+  return { items, scenarios, from, to, base, result, loading, error, editingIndex, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
 })

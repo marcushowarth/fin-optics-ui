@@ -120,6 +120,8 @@ function onRate(i: number, name: string | null, e: Event) {
             />
           </td>
           <td class="actions">
+            <button class="move" aria-label="Move up" :disabled="i === 0" @click="store.moveItem(i, i - 1)">↑</button>
+            <button class="move" aria-label="Move down" :disabled="i === store.items.length - 1" @click="store.moveItem(i, i + 1)">↓</button>
             <button class="edit" aria-label="Edit full item" @click="store.startEdit(i)">✎</button>
             <button class="remove" aria-label="Remove" @click="store.removeItem(i)">✕</button>
           </td>
@@ -174,6 +176,8 @@ tr.editing { background: #eef6f0; }
   font-size: 0.85rem;
   padding: 0.1rem 0.3rem;
 }
+.move:hover:not(:disabled) { color: #1a5c3a; }
+.move:disabled { color: #ddd; cursor: not-allowed; }
 .edit:hover { color: #1a5c3a; }
 .remove:hover { color: #c00; }
 </style>

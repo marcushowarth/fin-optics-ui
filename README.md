@@ -1,8 +1,8 @@
 # fin-optics-ui
 
 The front end for **FIN OPTICS** — a financial projection tool. Enter your
-assets, income, expenditure and liabilities, and see net worth and cash position
-projected decades ahead, in both nominal and inflation-adjusted terms.
+assets, income, expenditure, liabilities and one-off events, and see net worth and
+cash position projected decades ahead, in both nominal and inflation-adjusted terms.
 
 Built on the [`fin-optics-api`](https://github.com/marcushowarth/fin-optics-api)
 service, which wraps the [`fin-model`](https://github.com/marcushowarth/fin-model)
@@ -21,6 +21,12 @@ calculation engine.
 - **Solvency warnings** — months where cash goes negative are shaded red on the
   cash chart against a zero reference line, with a banner naming the first breach.
   Nothing is gated — the projection runs and shows you the problem
+- **Plans survive a refresh** — items, scenarios and the projection window are
+  auto-saved to `localStorage` and restored on load, so reloading the tab keeps
+  your plan. The API stays stateless — all persistence is client-side
+- **Import / export** — save the whole plan (items + scenarios + dates) to a JSON
+  file and load it back, so you can keep plan A vs B, share, or version a plan in
+  git
 
 ## Stack
 

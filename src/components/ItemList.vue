@@ -10,6 +10,7 @@ const TYPE_LABELS: Record<string, string> = {
   'income':       'Income',
   'expenditure':  'Expenditure',
   'liability':    'Liability',
+  'event':        'One-off',
 }
 </script>
 

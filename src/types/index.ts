@@ -1,4 +1,4 @@
-export type ItemType = 'asset' | 'investment' | 'bank-account' | 'income' | 'expenditure' | 'liability'
+export type ItemType = 'asset' | 'investment' | 'bank-account' | 'income' | 'expenditure' | 'liability' | 'event'
 
 export interface ScenarioDefinition {
   name: string
@@ -56,6 +56,14 @@ export interface LiabilityItem extends FinancialItemBase {
   monthlyRepayment: number
 }
 
+// A one-off, dated cash movement. Signed amount: positive = money in, negative
+// = money out. No lifecycle — a single flow at `date`.
+export interface FinancialEventItem extends FinancialItemBase {
+  type: 'event'
+  date: string
+  amount: number
+}
+
 export type FinancialItem =
   | AssetItem
   | InvestmentItem
@@ -63,6 +71,7 @@ export type FinancialItem =
   | IncomeItem
   | ExpenditureItem
   | LiabilityItem
+  | FinancialEventItem
 
 export interface ProjectionRequest {
   from: string

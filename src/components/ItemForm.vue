@@ -4,7 +4,7 @@ import { useProjectionStore } from '../stores/projection'
 import MonthPicker from './MonthPicker.vue'
 import type {
   ItemType, AssetItem, InvestmentItem, BankAccountItem,
-  IncomeItem, ExpenditureItem, LiabilityItem, FinancialItem,
+  IncomeItem, ExpenditureItem, LiabilityItem, FinancialEventItem, FinancialItem,
 } from '../types'
 
 const store = useProjectionStore()
@@ -40,6 +40,10 @@ const balance = ref<number | ''>('')
 const annualInterestRate = ref<number | ''>('')
 const monthlyRepayment = ref<number | ''>('')
 
+// One-off event (reuses `start` as the event date)
+const direction = ref<'in' | 'out'>('out')
+const eventAmount = ref<number | ''>('')
+
 const TYPES: { value: ItemType; label: string }[] = [
   { value: 'asset',        label: 'Asset' },
   { value: 'investment',   label: 'Investment' },
@@ -47,6 +51,7 @@ const TYPES: { value: ItemType; label: string }[] = [
   { value: 'income',       label: 'Income' },
   { value: 'expenditure',  label: 'Expenditure' },
   { value: 'liability',    label: 'Liability' },
+  { value: 'event',        label: 'One-off' },
 ]
 
 const NAME_PLACEHOLDERS: Record<ItemType, string> = {
@@ -56,6 +61,7 @@ const NAME_PLACEHOLDERS: Record<ItemType, string> = {
   'income':       'e.g. Main salary',
   'expenditure':  'e.g. Rent',
   'liability':    'e.g. Mortgage',
+  'event':        'e.g. Wedding, Inheritance',
 }
 
 // --- Wizard -----------------------------------------------------------------
@@ -110,6 +116,8 @@ const isValid = computed(() => {
       return !!start.value && monthlyAmount.value !== ''
     case 'liability':
       return !!start.value && balance.value !== '' && annualInterestRate.value !== '' && monthlyRepayment.value !== ''
+    case 'event':
+      return !!start.value && eventAmount.value !== ''
   }
 })
 
@@ -128,6 +136,8 @@ function reset() {
   balance.value = ''
   annualInterestRate.value = ''
   monthlyRepayment.value = ''
+  direction.value = 'out'
+  eventAmount.value = ''
   step.value = 0
 }
 
@@ -175,6 +185,11 @@ function load(item: FinancialItem) {
       balance.value = item.balance
       annualInterestRate.value = toPercent(item.annualInterestRate)
       monthlyRepayment.value = item.monthlyRepayment
+      break
+    case 'event':
+      start.value = item.date
+      direction.value = item.amount < 0 ? 'out' : 'in'
+      eventAmount.value = Math.abs(item.amount)
       break
   }
   step.value = 0
@@ -227,6 +242,12 @@ function submit() {
     case 'liability':
       item = { ...base, type: 'liability', start: start.value, balance: +balance.value, annualInterestRate: +annualInterestRate.value / 100, monthlyRepayment: +monthlyRepayment.value } as LiabilityItem
       break
+    case 'event': {
+      const magnitude = +eventAmount.value
+      const ev: FinancialEventItem = { ...base, type: 'event', date: start.value, amount: direction.value === 'out' ? -magnitude : magnitude }
+      item = ev
+      break
+    }
   }
 
   if (store.editingIndex !== null) {
@@ -281,6 +302,9 @@ function submit() {
       <template v-else-if="type === 'liability'">
         <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
       </template>
+      <template v-else-if="type === 'event'">
+        <div class="row"><label>Date</label><MonthPicker v-model="start" :required="true" /></div>
+      </template>
     </div>
 
     <!-- Step: amounts -->
@@ -303,6 +327,16 @@ function submit() {
       </template>
       <template v-else-if="type === 'expenditure'">
         <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
+      </template>
+      <template v-else-if="type === 'event'">
+        <div class="row">
+          <label>Direction</label>
+          <select v-model="direction">
+            <option value="out">Money out</option>
+            <option value="in">Money in</option>
+          </select>
+        </div>
+        <div class="row"><label>Amount (£)</label><input v-model.number="eventAmount" type="number" min="0" step="0.01" /></div>
       </template>
       <template v-else-if="type === 'liability'">
         <div class="row"><label>Balance (£)</label><input v-model.number="balance" type="number" min="0" step="0.01" /></div>

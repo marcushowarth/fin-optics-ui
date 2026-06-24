@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useProjectionStore } from './stores/projection'
 import ItemForm from './components/ItemForm.vue'
-import ItemList from './components/ItemList.vue'
+import PlanGrid from './components/PlanGrid.vue'
 import PlanToolbar from './components/PlanToolbar.vue'
 import ProjectionView from './components/ProjectionView.vue'
 import AppFooter from './components/AppFooter.vue'
@@ -18,7 +18,7 @@ const store = useProjectionStore()
       <ItemForm />
       <div class="right">
         <PlanToolbar />
-        <ItemList />
+        <PlanGrid />
         <div v-if="store.items.length > 0" class="run-row">
           <button class="run-btn" :disabled="store.loading" @click="store.runProjection">
             {{ store.loading ? 'Running…' : 'Run Projection' }}

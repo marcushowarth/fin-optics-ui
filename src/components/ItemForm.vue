@@ -113,7 +113,7 @@ const isValid = computed(() => {
     case 'income':
       return !!start.value && monthlyAmount.value !== '' && annualGrowthRate.value !== ''
     case 'expenditure':
-      return !!start.value && monthlyAmount.value !== ''
+      return !!start.value && monthlyAmount.value !== '' && annualGrowthRate.value !== ''
     case 'liability':
       return !!start.value && balance.value !== '' && annualInterestRate.value !== '' && monthlyRepayment.value !== ''
     case 'event':
@@ -179,6 +179,7 @@ function load(item: FinancialItem) {
       start.value = item.start
       end.value = item.end ?? ''
       monthlyAmount.value = item.monthlyAmount
+      annualGrowthRate.value = toPercent(item.annualGrowthRate)
       break
     case 'liability':
       start.value = item.start
@@ -234,7 +235,7 @@ function submit() {
       break
     }
     case 'expenditure': {
-      const exp: ExpenditureItem = { ...base, type: 'expenditure', start: start.value, monthlyAmount: +monthlyAmount.value }
+      const exp: ExpenditureItem = { ...base, type: 'expenditure', start: start.value, monthlyAmount: +monthlyAmount.value, annualGrowthRate: +annualGrowthRate.value / 100 }
       if (end.value) exp.end = end.value
       item = exp
       break
@@ -327,6 +328,7 @@ function submit() {
       </template>
       <template v-else-if="type === 'expenditure'">
         <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.1" /></div>
       </template>
       <template v-else-if="type === 'event'">
         <div class="row">

@@ -46,6 +46,7 @@ export interface ExpenditureItem extends FinancialItemBase {
   start: string
   end?: string
   monthlyAmount: number
+  annualGrowthRate: number
 }
 
 export interface LiabilityItem extends FinancialItemBase {

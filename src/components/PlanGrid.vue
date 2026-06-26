@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import type { ItemType, FinancialItem } from '../types'
 
@@ -67,6 +68,35 @@ function onRate(i: number, name: string | null, e: Event) {
   if (raw === '') return
   setField(i, name, Number(raw) / 100)
 }
+
+// --- Drag-and-drop reordering (native HTML5, via the row handle) ---
+const dragIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+
+function onDragStart(i: number, e: DragEvent) {
+  dragIndex.value = i
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(i))
+    // drag the whole row, not just the handle
+    const row = (e.target as HTMLElement).closest('tr')
+    if (row) e.dataTransfer.setDragImage(row, 0, 0)
+  }
+}
+function onDragOver(i: number, e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  dragOverIndex.value = i
+}
+function onDrop(i: number) {
+  if (dragIndex.value !== null && dragIndex.value !== i) store.moveItem(dragIndex.value, i)
+  dragIndex.value = null
+  dragOverIndex.value = null
+}
+function onDragEnd() {
+  dragIndex.value = null
+  dragOverIndex.value = null
+}
 </script>
 
 <template>
@@ -76,6 +106,7 @@ function onRate(i: number, name: string | null, e: Event) {
     <table v-else>
       <thead>
         <tr>
+          <th></th>
           <th>Type</th>
           <th>Name</th>
           <th>Start</th>
@@ -86,7 +117,14 @@ function onRate(i: number, name: string | null, e: Event) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(item, i) in store.items" :key="i" :class="{ editing: store.editingIndex === i }">
+        <tr
+          v-for="(item, i) in store.items" :key="i"
+          :class="{ editing: store.editingIndex === i, dragging: dragIndex === i, 'drag-over': dragOverIndex === i && dragIndex !== i }"
+          @dragover="onDragOver(i, $event)" @drop="onDrop(i)" @dragend="onDragEnd"
+        >
+          <td class="handle-cell">
+            <span class="handle" draggable="true" @dragstart="onDragStart(i, $event)" aria-label="Drag to reorder">⠿</span>
+          </td>
           <td><span class="type-badge">{{ TYPE_LABELS[item.type] }}</span></td>
           <td>
             <input class="cell name" type="text" :value="item.name" @change="onName(i, $event)" />
@@ -120,8 +158,6 @@ function onRate(i: number, name: string | null, e: Event) {
             />
           </td>
           <td class="actions">
-            <button class="move" aria-label="Move up" :disabled="i === 0" @click="store.moveItem(i, i - 1)">↑</button>
-            <button class="move" aria-label="Move down" :disabled="i === store.items.length - 1" @click="store.moveItem(i, i + 1)">↓</button>
             <button class="edit" aria-label="Edit full item" @click="store.startEdit(i)">✎</button>
             <button class="remove" aria-label="Remove" @click="store.removeItem(i)">✕</button>
           </td>
@@ -146,6 +182,12 @@ th, td { padding: 0.3rem 0.4rem; border-bottom: 1px solid #f0f0f0; text-align: l
 th { color: #777; font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
 th.num, td.num { text-align: right; }
 tr.editing { background: #eef6f0; }
+tr.dragging { opacity: 0.4; }
+tr.drag-over td { border-top: 2px solid #1a5c3a; }
+.handle-cell { width: 1.1rem; text-align: center; padding-right: 0; }
+.handle { cursor: grab; color: #ccc; user-select: none; font-size: 0.9rem; }
+.handle:hover { color: #888; }
+.handle:active { cursor: grabbing; }
 .type-badge {
   background: #eee;
   border-radius: 3px;
@@ -165,7 +207,8 @@ tr.editing { background: #eef6f0; }
 }
 .cell:hover { border-color: #ddd; }
 .cell:focus { border-color: #1a5c3a; outline: none; background: #fff; }
-.cell.num { text-align: right; }
+/* auto-size numeric cells to their content (longer digits fit) */
+.cell.num { width: auto; field-sizing: content; min-width: 4.5rem; max-width: 10rem; text-align: right; }
 .cell.name { min-width: 7rem; }
 .actions { white-space: nowrap; text-align: right; }
 .actions button {
@@ -176,8 +219,6 @@ tr.editing { background: #eef6f0; }
   font-size: 0.85rem;
   padding: 0.1rem 0.3rem;
 }
-.move:hover:not(:disabled) { color: #1a5c3a; }
-.move:disabled { color: #ddd; cursor: not-allowed; }
 .edit:hover { color: #1a5c3a; }
 .remove:hover { color: #c00; }
 </style>

@@ -40,7 +40,7 @@ const RATE_FIELD: Record<ItemType, string | null> = {
 const toPercent = (d: number) => Math.round(d * 1e6) / 1e4
 
 function field(item: FinancialItem, name: string | null): unknown {
-  return name ? (item as Record<string, unknown>)[name] : undefined
+  return name ? (item as unknown as Record<string, unknown>)[name] : undefined
 }
 
 // Reuse the store update path: clone, set (or clear) one field, replace.

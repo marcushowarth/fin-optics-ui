@@ -31,6 +31,7 @@ function removeScenario(i: number) {
           <label>From <input type="month" v-model="store.from" /></label>
           <label>To <input type="month" v-model="store.to" /></label>
           <label>Real-terms base <input type="month" v-model="store.base" /></label>
+          <label>Starting cash at From (£) <input class="cash" type="number" step="0.01" v-model.number="store.startingCash" /></label>
         </div>
       </section>
 
@@ -65,6 +66,7 @@ label { display: flex; justify-content: space-between; align-items: center; gap:
 input { font: inherit; padding: 0.2rem 0.3rem; border: 1px solid #ddd; border-radius: 3px; }
 input:focus { border-color: #1a5c3a; outline: none; }
 .scenario-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem; }
+.cash { width: 7rem; text-align: right; }
 .sc-name { width: 6rem; }
 .sc-rate { width: 5rem; text-align: right; }
 .pct { color: #777; }

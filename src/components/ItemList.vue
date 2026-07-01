@@ -6,7 +6,6 @@ const store = useProjectionStore()
 const TYPE_LABELS: Record<string, string> = {
   'asset':        'Asset',
   'investment':   'Investment',
-  'bank-account': 'Bank Account',
   'income':       'Income',
   'expenditure':  'Expenditure',
   'liability':    'Liability',

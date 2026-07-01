@@ -8,7 +8,6 @@ const store = useProjectionStore()
 const TYPE_LABELS: Record<ItemType, string> = {
   'asset':        'Asset',
   'investment':   'Investment',
-  'bank-account': 'Bank Account',
   'income':       'Income',
   'expenditure':  'Expenditure',
   'liability':    'Liability',
@@ -19,19 +18,19 @@ const TYPE_LABELS: Record<ItemType, string> = {
 // column doesn't apply (empty cell). This is what aligns common fields
 // vertically — every start date in one column, every rate in another.
 const START_FIELD: Record<ItemType, string | null> = {
-  'asset': 'start', 'investment': 'start', 'bank-account': null,
+  'asset': 'start', 'investment': 'start',
   'income': 'start', 'expenditure': 'start', 'liability': 'start', 'event': 'date',
 }
 const END_FIELD: Record<ItemType, string | null> = {
-  'asset': null, 'investment': null, 'bank-account': null,
+  'asset': null, 'investment': null,
   'income': 'end', 'expenditure': 'end', 'liability': null, 'event': null,
 }
 const AMOUNT_FIELD: Record<ItemType, string | null> = {
-  'asset': 'startValue', 'investment': 'startValue', 'bank-account': 'startBalance',
+  'asset': 'startValue', 'investment': 'startValue',
   'income': 'monthlyAmount', 'expenditure': 'monthlyAmount', 'liability': 'balance', 'event': 'amount',
 }
 const RATE_FIELD: Record<ItemType, string | null> = {
-  'asset': 'annualGrowthRate', 'investment': 'annualGrowthRate', 'bank-account': null,
+  'asset': 'annualGrowthRate', 'investment': 'annualGrowthRate',
   'income': 'annualGrowthRate', 'expenditure': 'annualGrowthRate', 'liability': 'annualInterestRate', 'event': null,
 }
 

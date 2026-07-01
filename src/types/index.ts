@@ -1,4 +1,4 @@
-export type ItemType = 'asset' | 'investment' | 'bank-account' | 'income' | 'expenditure' | 'liability' | 'event'
+export type ItemType = 'asset' | 'investment' | 'income' | 'expenditure' | 'liability' | 'event'
 
 export interface ScenarioDefinition {
   name: string
@@ -26,11 +26,6 @@ export interface InvestmentItem extends FinancialItemBase {
   annualGrowthRate: number
   drawdownStart?: string
   monthlyDrawdown?: number
-}
-
-export interface BankAccountItem extends FinancialItemBase {
-  type: 'bank-account'
-  startBalance: number
 }
 
 export interface IncomeItem extends FinancialItemBase {
@@ -68,7 +63,6 @@ export interface FinancialEventItem extends FinancialItemBase {
 export type FinancialItem =
   | AssetItem
   | InvestmentItem
-  | BankAccountItem
   | IncomeItem
   | ExpenditureItem
   | LiabilityItem
@@ -78,6 +72,7 @@ export interface ProjectionRequest {
   from: string
   to: string
   base: string
+  startingCash: number
   items: FinancialItem[]
   scenarios: ScenarioDefinition[]
 }

@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import MonthPicker from './MonthPicker.vue'
 import type {
-  ItemType, AssetItem, InvestmentItem, BankAccountItem,
+  ItemType, AssetItem, InvestmentItem,
   IncomeItem, ExpenditureItem, LiabilityItem, FinancialEventItem, FinancialItem,
 } from '../types'
 
@@ -29,9 +29,6 @@ const saleDate = ref('')
 const drawdownStart = ref('')
 const monthlyDrawdown = ref<number | ''>('')
 
-// Bank account
-const startBalance = ref<number | ''>('')
-
 // Income / Expenditure
 const monthlyAmount = ref<number | ''>('')
 
@@ -47,7 +44,6 @@ const eventAmount = ref<number | ''>('')
 const TYPES: { value: ItemType; label: string }[] = [
   { value: 'asset',        label: 'Asset' },
   { value: 'investment',   label: 'Investment' },
-  { value: 'bank-account', label: 'Bank Account' },
   { value: 'income',       label: 'Income' },
   { value: 'expenditure',  label: 'Expenditure' },
   { value: 'liability',    label: 'Liability' },
@@ -57,7 +53,6 @@ const TYPES: { value: ItemType; label: string }[] = [
 const NAME_PLACEHOLDERS: Record<ItemType, string> = {
   'asset':        'e.g. Property',
   'investment':   'e.g. Stocks & Shares ISA',
-  'bank-account': 'e.g. Monzo',
   'income':       'e.g. Main salary',
   'expenditure':  'e.g. Rent',
   'liability':    'e.g. Mortgage',
@@ -65,16 +60,14 @@ const NAME_PLACEHOLDERS: Record<ItemType, string> = {
 }
 
 // --- Wizard -----------------------------------------------------------------
-// Grouped steps: basics → timing → amounts. Bank Account has no timing fields,
-// so it skips that step. Because timing is entered before amounts, every date
-// field can default forward off `start` (see MonthPicker :min) — no disabled
-// guards needed; the engine validates the rest by running the projection.
+// Grouped steps: basics → timing → amounts. Because timing is entered before
+// amounts, every date field can default forward off `start` (see MonthPicker
+// :min) — no disabled guards needed; the engine validates the rest by running
+// the projection.
 
 const step = ref(0)
 
-const steps = computed<string[]>(() =>
-  type.value === 'bank-account' ? ['basics', 'amounts'] : ['basics', 'timing', 'amounts'],
-)
+const steps = computed<string[]>(() => ['basics', 'timing', 'amounts'])
 
 const currentStep = computed(() => steps.value[step.value])
 const isLast = computed(() => step.value === steps.value.length - 1)
@@ -108,8 +101,6 @@ const isValid = computed(() => {
       return !!start.value && startValue.value !== '' && annualGrowthRate.value !== ''
     case 'investment':
       return !!start.value && startValue.value !== '' && annualGrowthRate.value !== ''
-    case 'bank-account':
-      return startBalance.value !== ''
     case 'income':
       return !!start.value && monthlyAmount.value !== '' && annualGrowthRate.value !== ''
     case 'expenditure':
@@ -131,7 +122,6 @@ function reset() {
   saleDate.value = ''
   drawdownStart.value = ''
   monthlyDrawdown.value = ''
-  startBalance.value = ''
   monthlyAmount.value = ''
   balance.value = ''
   annualInterestRate.value = ''
@@ -165,9 +155,6 @@ function load(item: FinancialItem) {
       annualGrowthRate.value = toPercent(item.annualGrowthRate)
       drawdownStart.value = item.drawdownStart ?? ''
       monthlyDrawdown.value = item.monthlyDrawdown ?? ''
-      break
-    case 'bank-account':
-      startBalance.value = item.startBalance
       break
     case 'income':
       start.value = item.start
@@ -225,9 +212,6 @@ function submit() {
       item = inv
       break
     }
-    case 'bank-account':
-      item = { ...base, type: 'bank-account', startBalance: +startBalance.value } as BankAccountItem
-      break
     case 'income': {
       const inc: IncomeItem = { ...base, type: 'income', start: start.value, monthlyAmount: +monthlyAmount.value, annualGrowthRate: +annualGrowthRate.value / 100 }
       if (end.value) inc.end = end.value
@@ -318,9 +302,6 @@ function submit() {
         <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
         <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" step="0.01" /></div>
-      </template>
-      <template v-else-if="type === 'bank-account'">
-        <div class="row"><label>Start Balance (£)</label><input v-model.number="startBalance" type="number" step="0.01" /></div>
       </template>
       <template v-else-if="type === 'income'">
         <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>

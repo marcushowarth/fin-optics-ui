@@ -4,7 +4,7 @@ import { fetchProjection } from '../api/projection'
 import type { FinancialItem, ProjectionResponse, ScenarioDefinition } from '../types'
 
 const STORAGE_KEY = 'fin-optics:plan'
-const PLAN_VERSION = 1
+const PLAN_VERSION = 2
 
 // The portable shape of a plan — items + assumptions. Shared by localStorage
 // auto-save and JSON file import/export, so a saved file and a refresh restore
@@ -16,6 +16,7 @@ export interface Plan {
   from: string
   to: string
   base: string
+  startingCash: number
 }
 
 export const useProjectionStore = defineStore('projection', () => {
@@ -28,6 +29,7 @@ export const useProjectionStore = defineStore('projection', () => {
   const from = ref('2026-01')
   const to   = ref('2055-12')
   const base = ref('2026-05')
+  const startingCash = ref(0)
 
   const result = ref<ProjectionResponse | null>(null)
   const loading = ref(false)
@@ -45,6 +47,7 @@ export const useProjectionStore = defineStore('projection', () => {
         from: from.value,
         to: to.value,
         base: base.value,
+        startingCash: startingCash.value,
         items: items.value,
         scenarios: scenarios.value,
       })
@@ -103,17 +106,32 @@ export const useProjectionStore = defineStore('projection', () => {
       from: from.value,
       to: to.value,
       base: base.value,
+      startingCash: startingCash.value,
     }
   }
 
   // Apply a (possibly partial / untrusted) plan, field by field — a malformed
   // or older file replaces only the fields it validly carries.
+  // v1 plans modelled liquidity as bank-account items; fold their balances
+  // into startingCash and drop them (the API no longer accepts the type).
   function applyPlan(plan: Partial<Plan> | null | undefined) {
-    if (Array.isArray(plan?.items)) items.value = plan.items
+    if (Array.isArray(plan?.items)) {
+      const legacy = plan.items.filter(
+        (i): i is FinancialItem & { startBalance?: number } =>
+          (i as { type?: string })?.type === 'bank-account',
+      )
+      if (legacy.length > 0) {
+        items.value = plan.items.filter(i => !legacy.includes(i))
+        startingCash.value = legacy.reduce((sum, b) => sum + (Number(b.startBalance) || 0), 0)
+      } else {
+        items.value = plan.items
+      }
+    }
     if (Array.isArray(plan?.scenarios)) scenarios.value = plan.scenarios
     if (typeof plan?.from === 'string') from.value = plan.from
     if (typeof plan?.to === 'string') to.value = plan.to
     if (typeof plan?.base === 'string') base.value = plan.base
+    if (typeof plan?.startingCash === 'number') startingCash.value = plan.startingCash
     editingIndex.value = null
   }
 
@@ -135,7 +153,7 @@ export const useProjectionStore = defineStore('projection', () => {
     // corrupt or unavailable storage — start fresh, non-fatal
   }
 
-  watch([items, scenarios, from, to, base], () => {
+  watch([items, scenarios, from, to, base, startingCash], () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toPlan()))
     } catch {
@@ -143,5 +161,5 @@ export const useProjectionStore = defineStore('projection', () => {
     }
   }, { deep: true })
 
-  return { items, scenarios, from, to, base, result, loading, error, editingIndex, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
+  return { items, scenarios, from, to, base, startingCash, result, loading, error, editingIndex, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
 })

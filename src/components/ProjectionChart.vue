@@ -15,6 +15,7 @@ const props = defineProps<{
   warnings?: string[]                               // months where cash is negative
   zeroLine?: boolean                                // draw a y=0 reference
   primaryOnly?: boolean                             // start with only the first series visible
+  stacked?: boolean                                 // stacked area breakdown mode
 }>()
 
 // Show just the first series (Nominal) on load; the rest are opt-in via the legend.
@@ -93,6 +94,7 @@ const option = computed(() => ({
     showSymbol: false,
     smooth: false,
     connectNulls: false,
+    ...(props.stacked ? { stack: 'total', areaStyle: { opacity: 0.55 } } : {}),
     // Warning bands + zero line ride on the first series so they render once.
     ...(i === 0 && props.zeroLine
       ? {

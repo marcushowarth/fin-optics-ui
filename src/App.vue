@@ -16,17 +16,19 @@ const store = useProjectionStore()
     <p class="tagline">Financial projection engine — items in, 30-year view out.</p>
 
     <div class="layout">
-      <ItemForm />
-      <div class="right">
-        <PlanToolbar />
-        <SettingsPanel />
-        <PlanGrid />
-        <div v-if="store.items.length > 0" class="run-row">
-          <button class="run-btn" :disabled="store.loading" @click="store.runProjection">
+      <div class="left">
+        <div class="top-bar">
+          <PlanToolbar />
+          <button v-if="store.items.length > 0" class="run-btn" :disabled="store.loading" @click="store.runProjection">
             {{ store.loading ? 'Running…' : 'Run Projection' }}
           </button>
+          <p v-if="store.error" class="error inline-error">{{ store.error }}</p>
         </div>
-        <p v-if="store.error" class="error">{{ store.error }}</p>
+        <SettingsPanel />
+        <PlanGrid />
+        <ItemForm />
+      </div>
+      <div class="right">
         <ProjectionView />
       </div>
     </div>
@@ -44,8 +46,10 @@ body { font-family: sans-serif; margin: 0; background: #f5f5f5; }
 h1 { margin: 0 0 0.25rem; }
 .tagline { margin: 0 0 1.5rem; color: #666; font-size: 0.95rem; }
 .layout { display: grid; grid-template-columns: 480px 1fr; gap: 1.5rem; align-items: start; }
+.left  { display: flex; flex-direction: column; gap: 1rem; }
 .right { display: flex; flex-direction: column; gap: 1rem; }
-.run-row { text-align: right; }
+.top-bar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.inline-error { margin: 0; flex: 1; }
 .run-btn {
   padding: 0.5rem 1.5rem;
   background: #1a5c3a;

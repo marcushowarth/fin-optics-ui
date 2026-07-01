@@ -100,8 +100,8 @@ function onDragEnd() {
 </script>
 
 <template>
-  <div class="plan-grid">
-    <h2>Items ({{ store.items.length }})</h2>
+  <details class="plan-grid" open>
+    <summary>Items ({{ store.items.length }})</summary>
     <p v-if="store.items.length === 0" class="empty">No items yet.</p>
     <table v-else>
       <thead>
@@ -164,7 +164,7 @@ function onDragEnd() {
         </tr>
       </tbody>
     </table>
-  </div>
+  </details>
 </template>
 
 <style scoped>
@@ -172,10 +172,11 @@ function onDragEnd() {
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 6px;
-  padding: 1.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
   overflow-x: auto;
 }
-h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+summary { cursor: pointer; font-weight: 600; color: #555; padding: 0.3rem 0; list-style: revert; }
 .empty { color: #999; font-size: 0.9rem; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 th, td { padding: 0.3rem 0.4rem; border-bottom: 1px solid #f0f0f0; text-align: left; }

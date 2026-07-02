@@ -14,29 +14,12 @@ const TYPE_LABELS: Record<ItemType, string> = {
   'event':        'One-off',
 }
 
-// Which underlying property each shared column maps to, per type. null = the
-// column doesn't apply (empty cell). This is what aligns common fields
-// vertically — every start date in one column, every rate in another.
-const START_FIELD: Record<ItemType, string | null> = {
-  'asset': 'start', 'investment': 'start',
-  'income': 'start', 'expenditure': 'start', 'liability': 'start', 'event': 'date',
-}
-const END_FIELD: Record<ItemType, string | null> = {
-  'asset': null, 'investment': null,
-  'income': 'end', 'expenditure': 'end', 'liability': null, 'event': null,
-}
+// Which underlying property the shared Amount/Value column maps to, per type.
+// Start, End and Rate are edited in the full item modal, not this grid.
 const AMOUNT_FIELD: Record<ItemType, string | null> = {
   'asset': 'startValue', 'investment': 'startValue',
   'income': 'monthlyAmount', 'expenditure': 'monthlyAmount', 'liability': 'balance', 'event': 'amount',
 }
-const RATE_FIELD: Record<ItemType, string | null> = {
-  'asset': 'annualGrowthRate', 'investment': 'annualGrowthRate',
-  'income': 'annualGrowthRate', 'expenditure': 'annualGrowthRate', 'liability': 'annualInterestRate', 'event': null,
-}
-
-// Stored rates are decimals (0.03); the grid shows them as percentages (3).
-// Round to absorb float noise, e.g. 0.035 * 100 = 3.4999999999999996.
-const toPercent = (d: number) => Math.round(d * 1e6) / 1e4
 
 function field(item: FinancialItem, name: string | null): unknown {
   return name ? (item as unknown as Record<string, unknown>)[name] : undefined
@@ -54,18 +37,10 @@ function setField(i: number, name: string | null, value: unknown) {
 function onName(i: number, e: Event) {
   setField(i, 'name', (e.target as HTMLInputElement).value)
 }
-function onText(i: number, name: string | null, e: Event) {
-  setField(i, name, (e.target as HTMLInputElement).value)
-}
 function onNumber(i: number, name: string | null, e: Event) {
   const raw = (e.target as HTMLInputElement).value
   if (raw === '') return
   setField(i, name, Number(raw))
-}
-function onRate(i: number, name: string | null, e: Event) {
-  const raw = (e.target as HTMLInputElement).value
-  if (raw === '') return
-  setField(i, name, Number(raw) / 100)
 }
 
 // --- Drag-and-drop reordering (native HTML5, via the row handle) ---
@@ -108,10 +83,7 @@ function onDragEnd() {
           <th></th>
           <th>Type</th>
           <th>Name</th>
-          <th>Start</th>
-          <th>End</th>
           <th class="num">Amount / Value (£)</th>
-          <th class="num">Rate (%)</th>
           <th></th>
         </tr>
       </thead>
@@ -128,32 +100,11 @@ function onDragEnd() {
           <td>
             <input class="cell name" type="text" :value="item.name" @change="onName(i, $event)" />
           </td>
-          <td>
-            <input
-              v-if="START_FIELD[item.type]" class="cell" type="month"
-              :value="field(item, START_FIELD[item.type])"
-              @change="onText(i, START_FIELD[item.type], $event)"
-            />
-          </td>
-          <td>
-            <input
-              v-if="END_FIELD[item.type]" class="cell" type="month"
-              :value="field(item, END_FIELD[item.type]) ?? ''"
-              @change="onText(i, END_FIELD[item.type], $event)"
-            />
-          </td>
           <td class="num">
             <input
               v-if="AMOUNT_FIELD[item.type]" class="cell num" type="number" step="0.01"
               :value="field(item, AMOUNT_FIELD[item.type])"
               @change="onNumber(i, AMOUNT_FIELD[item.type], $event)"
-            />
-          </td>
-          <td class="num">
-            <input
-              v-if="RATE_FIELD[item.type]" class="cell num" type="number" step="0.001"
-              :value="toPercent(field(item, RATE_FIELD[item.type]) as number)"
-              @change="onRate(i, RATE_FIELD[item.type], $event)"
             />
           </td>
           <td class="actions">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import MonthPicker from './MonthPicker.vue'
 import type {
@@ -185,12 +185,19 @@ function load(item: FinancialItem) {
 
 watch(() => store.editingIndex, (idx) => {
   if (idx !== null) load(store.items[idx])
+  else reset()
 })
 
 function cancel() {
   store.cancelEdit()
-  reset()
 }
+
+// Editing opens in a modal (see App.vue) — Escape closes it, same as Cancel.
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && store.editingIndex !== null) store.cancelEdit()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 function submit() {
   if (!isValid.value) return

@@ -35,8 +35,10 @@ export const useProjectionStore = defineStore('projection', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const editingIndex = ref<number | null>(null)
+  const adding = ref(false)
 
   const hasWarnings = computed(() => (result.value?.nominal.warnings.length ?? 0) > 0)
+  const formOpen = computed(() => editingIndex.value !== null || adding.value)
 
   async function runProjection() {
     if (items.value.length === 0) return
@@ -92,8 +94,14 @@ export const useProjectionStore = defineStore('projection', () => {
     editingIndex.value = index
   }
 
+  function startAdd() {
+    adding.value = true
+  }
+
+  // Closes whichever form is open — edit or add.
   function cancelEdit() {
     editingIndex.value = null
+    adding.value = false
   }
 
   // ---- Plan serialization (used by persistence + import/export) ----
@@ -161,5 +169,5 @@ export const useProjectionStore = defineStore('projection', () => {
     }
   }, { deep: true })
 
-  return { items, scenarios, from, to, base, startingCash, result, loading, error, editingIndex, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
+  return { items, scenarios, from, to, base, startingCash, result, loading, error, editingIndex, adding, formOpen, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, startAdd, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
 })

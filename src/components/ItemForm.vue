@@ -183,18 +183,21 @@ function load(item: FinancialItem) {
   step.value = 0
 }
 
+// immediate: true — the form now mounts fresh each time it opens (see App.vue's
+// v-if modal), by which point editingIndex has already been set, so a
+// non-immediate watch would never see the transition.
 watch(() => store.editingIndex, (idx) => {
   if (idx !== null) load(store.items[idx])
   else reset()
-})
+}, { immediate: true })
 
 function cancel() {
   store.cancelEdit()
 }
 
-// Editing opens in a modal (see App.vue) — Escape closes it, same as Cancel.
+// The form always opens in a modal (see App.vue) — Escape closes it, same as Cancel/Done.
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && store.editingIndex !== null) store.cancelEdit()
+  if (e.key === 'Escape' && store.formOpen) store.cancelEdit()
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
@@ -337,7 +340,10 @@ function submit() {
 
     <div class="nav">
       <button v-if="isEditing" type="button" class="reset" @click="cancel">Cancel</button>
-      <button v-else type="button" class="reset" @click="reset">Reset</button>
+      <template v-else>
+        <button type="button" class="reset" @click="reset">Reset</button>
+        <button type="button" class="reset done" @click="cancel">Done</button>
+      </template>
       <button type="button" class="ghost" :disabled="step === 0" @click="back">← Back</button>
       <button v-if="!isLast" type="button" class="next" :disabled="!canAdvance" @click="next">Next →</button>
       <button v-else type="submit" class="add" :disabled="!isValid">{{ isEditing ? 'Save' : 'Add' }}</button>
@@ -397,6 +403,7 @@ input, select {
 .nav .ghost { background: #f0f0f0; color: #555; }
 .nav .reset { background: none; color: #999; padding-left: 0; }
 .nav .reset:hover { color: #c00; }
+.nav .done:hover { color: #1a5c3a; }
 .nav button:disabled { background: #eee; color: #bbb; cursor: not-allowed; }
 .nav .next:disabled, .nav .add:disabled { background: #ccc; color: #fff; }
 </style>

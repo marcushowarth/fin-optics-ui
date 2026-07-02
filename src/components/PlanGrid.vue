@@ -43,6 +43,22 @@ function onNumber(i: number, name: string | null, e: Event) {
   setField(i, name, Number(raw))
 }
 
+// Remove requires a second click on the same row within 3s, else it lapses.
+const confirmingIndex = ref<number | null>(null)
+let confirmTimeout: ReturnType<typeof setTimeout> | undefined
+
+function onRemoveClick(i: number) {
+  if (confirmingIndex.value === i) {
+    clearTimeout(confirmTimeout)
+    confirmingIndex.value = null
+    store.removeItem(i)
+    return
+  }
+  clearTimeout(confirmTimeout)
+  confirmingIndex.value = i
+  confirmTimeout = setTimeout(() => { confirmingIndex.value = null }, 3000)
+}
+
 // --- Drag-and-drop reordering (native HTML5, via the row handle) ---
 const dragIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
@@ -108,8 +124,15 @@ function onDragEnd() {
             />
           </td>
           <td class="actions">
-            <button class="edit" aria-label="Edit full item" @click="store.startEdit(i)">✎</button>
-            <button class="remove" aria-label="Remove" @click="store.removeItem(i)">✕</button>
+            <template v-if="confirmingIndex === i">
+              <span class="confirm-text">Remove?</span>
+              <button class="confirm-yes" aria-label="Confirm remove" @click="onRemoveClick(i)">✓</button>
+              <button class="confirm-no" aria-label="Cancel remove" @click="confirmingIndex = null">✕</button>
+            </template>
+            <template v-else>
+              <button class="edit" aria-label="Edit full item" @click="store.startEdit(i)">✎</button>
+              <button class="remove" aria-label="Remove" @click="onRemoveClick(i)">✕</button>
+            </template>
           </td>
         </tr>
       </tbody>
@@ -172,4 +195,7 @@ tr.drag-over td { border-top: 2px solid #1a5c3a; }
 }
 .edit:hover { color: #1a5c3a; }
 .remove:hover { color: #c00; }
+.confirm-text { color: #c00; font-size: 0.75rem; margin-right: 0.2rem; }
+.confirm-yes:hover { color: #1a5c3a; }
+.confirm-no:hover { color: #c00; }
 </style>

@@ -26,15 +26,12 @@ const store = useProjectionStore()
         </div>
         <SettingsPanel />
         <PlanGrid />
+        <button class="add-item-btn" @click="store.startAdd">+ Add Item</button>
 
-        <!-- Add-item carousel stays inline; editing an existing item pops the
-             same form out to a modal (Teleport is a no-op when not editing),
-             so the full field set gets room without cramping the grid. -->
-        <Teleport to="body" :disabled="store.editingIndex === null">
-          <div
-            :class="{ 'modal-backdrop': store.editingIndex !== null }"
-            @click.self="store.editingIndex !== null && store.cancelEdit()"
-          >
+        <!-- Adding and editing both open the same form in a modal, so the
+             full field set gets room without cramping the grid/left column. -->
+        <Teleport v-if="store.formOpen" to="body">
+          <div class="modal-backdrop" @click.self="store.cancelEdit">
             <ItemForm />
           </div>
         </Teleport>
@@ -72,6 +69,17 @@ h1 { margin: 0 0 0.25rem; }
 }
 .run-btn:disabled { background: #999; cursor: not-allowed; }
 .error { color: #c00; font-size: 0.9rem; }
+.add-item-btn {
+  align-self: flex-start;
+  padding: 0.4rem 1rem;
+  background: #fff;
+  color: #1a5c3a;
+  border: 1px solid #1a5c3a;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.add-item-btn:hover { background: #eef6f0; }
 </style>
 
 <style>

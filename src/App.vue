@@ -26,7 +26,7 @@ const store = useProjectionStore()
         </div>
         <SettingsPanel />
         <PlanGrid />
-        <button class="add-item-btn" @click="store.startAdd">+ Add Item</button>
+        <button class="add-item-btn" @click="store.startAdd">+ Add Items</button>
 
         <!-- Adding and editing both open the same form in a modal, so the
              full field set gets room without cramping the grid/left column. -->

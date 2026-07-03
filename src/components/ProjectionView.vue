@@ -69,13 +69,14 @@ const cashSeries = computed<Series[]>(() => {
   <div v-if="store.result" class="charts">
     <section class="chart-block">
       <h3 class="chart-title">Cash Position</h3>
-      <p class="chart-sub">Liquid cash running balance — red bands mark months it goes negative.</p>
+      <p class="chart-sub">Liquid cash running balance — shaded red below zero.</p>
       <ProjectionChart
         :months="months"
         :series="cashSeries"
         :warnings="warningMonths"
         :zero-line="true"
         :primary-only="true"
+        :liquidity-colors="true"
       />
     </section>
 

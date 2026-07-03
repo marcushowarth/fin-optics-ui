@@ -2,12 +2,12 @@
 import { computed } from 'vue'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } from 'echarts/components'
+import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapPiecewiseComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { money } from '../format'
 
-use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, CanvasRenderer])
+use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapPiecewiseComponent, CanvasRenderer])
 
 const props = defineProps<{
   months: string[]                                  // 'YYYY-MM'
@@ -16,7 +16,14 @@ const props = defineProps<{
   zeroLine?: boolean                                // draw a y=0 reference
   primaryOnly?: boolean                             // start with only the first series visible
   stacked?: boolean                                 // stacked area breakdown mode
+  liquidityColors?: boolean                         // colour the primary line/area by sign (green above zero, red below)
 }>()
+
+// Reuses the app's existing brand colours (App.vue run-btn green, warning-banner
+// red) rather than introducing a new hue — this is a status encoding (healthy vs
+// critical liquidity), not a new series identity.
+const LIQUIDITY_GOOD = '#1a5c3a'
+const LIQUIDITY_CRITICAL = '#c0392b'
 
 // Show just the first series (Nominal) on load; the rest are opt-in via the legend.
 const legendSelected = computed(() =>
@@ -87,6 +94,25 @@ const option = computed(() => ({
     { type: 'inside' },
     { type: 'slider', height: 18, bottom: 16 },
   ],
+  // Colours the primary line + area by sign — a status encoding (healthy vs
+  // critical liquidity), not a series identity, so it targets seriesIndex 0
+  // only and stays hidden as a legend/filter widget.
+  ...(props.liquidityColors
+    ? {
+        visualMap: {
+          show: false,
+          seriesIndex: 0,
+          dimension: 1,
+          // Explicit finite bounds on both pieces — an open-ended min/max piece
+          // crashes echarts' internal gradient-stop calculation for line series
+          // (getVisualGradient reading 'coord' of undefined).
+          pieces: [
+            { gte: 0, lte: 1e15, color: LIQUIDITY_GOOD },
+            { gte: -1e15, lt: 0, color: LIQUIDITY_CRITICAL },
+          ],
+        },
+      }
+    : {}),
   series: timeSeries.value.map((s, i) => ({
     name: s.name,
     type: 'line',
@@ -95,6 +121,7 @@ const option = computed(() => ({
     smooth: false,
     connectNulls: false,
     ...(props.stacked ? { stack: 'total', areaStyle: { opacity: 0.55 } } : {}),
+    ...(i === 0 && props.liquidityColors ? { areaStyle: { opacity: 0.18 } } : {}),
     // Warning bands + zero line ride on the first series so they render once.
     ...(i === 0 && props.zeroLine
       ? {
@@ -107,7 +134,10 @@ const option = computed(() => ({
           },
         }
       : {}),
-    ...(i === 0 && warningRanges.value.length
+    // The banded warning overlay is redundant once the area itself is
+    // coloured by sign — it traced the same "which months are negative"
+    // story more coarsely.
+    ...(i === 0 && warningRanges.value.length && !props.liquidityColors
       ? {
           markArea: {
             silent: true,

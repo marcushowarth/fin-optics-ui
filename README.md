@@ -58,6 +58,20 @@ fin-optics-ui  ──HTTP──▶  fin-optics-api  ──depends on──▶  f
   (this repo)             (Quarkus-native)                 (Java engine)
 ```
 
+## Privacy
+
+Nothing you enter is stored on the server — `fin-optics-api` has no database
+and no session; it computes a projection from the request and returns it.
+Plans you save persist client-side only (`localStorage` / exported JSON files
+— see Features above), never sent anywhere but to the API to compute results.
+
+Verified, not just asserted: the API has no access-log configuration
+(Quarkus's HTTP access log is opt-in and disabled here), and the Caddy site
+block in front of it has no `log` directive — neither logs the request body,
+or anything else, for this service.
+
+This tool is illustrative only and not financial advice.
+
 ## License
 
 [MIT](LICENSE)

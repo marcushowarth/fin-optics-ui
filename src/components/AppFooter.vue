@@ -25,12 +25,19 @@ function tooltip(): string {
 </script>
 
 <template>
-  <footer class="app-footer" :title="tooltip()">
-    <span>FIN OPTICS</span>
-    <span class="sep">·</span>
-    <span>UI {{ short(uiVersion) }}</span>
-    <span class="sep">·</span>
-    <span>API {{ api ? short(api.gitSha) : '—' }}</span>
+  <footer class="app-footer">
+    <div class="version-row" :title="tooltip()">
+      <span>FIN OPTICS</span>
+      <span class="sep">·</span>
+      <span>UI {{ short(uiVersion) }}</span>
+      <span class="sep">·</span>
+      <span>API {{ api ? short(api.gitSha) : '—' }}</span>
+    </div>
+    <p class="privacy">
+      Nothing you enter is stored on our servers — any plan you save lives in your
+      browser only. Inputs are sent over HTTPS solely to compute your projection,
+      not persisted or logged. Illustrative only — not financial advice.
+    </p>
   </footer>
 </template>
 
@@ -41,9 +48,18 @@ function tooltip(): string {
   border-top: 1px solid #e2e2e2;
   color: #999;
   font-size: 0.75rem;
+  text-align: center;
+}
+.version-row {
   display: flex;
   gap: 0.4rem;
   justify-content: center;
 }
 .sep { color: #ccc; }
+.privacy {
+  margin: 0.4rem auto 0;
+  max-width: 32rem;
+  color: #aaa;
+  line-height: 1.4;
+}
 </style>

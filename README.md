@@ -55,7 +55,7 @@ npm run preview    # serve the production build
 
 ```
 fin-optics-ui  ──HTTP──▶  fin-optics-api  ──depends on──▶  fin-model
-  (this repo)               (Spring Boot)                  (Java engine)
+  (this repo)             (Quarkus-native)                 (Java engine)
 ```
 
 ## License

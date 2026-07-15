@@ -17,6 +17,8 @@ export interface Plan {
   to: string
   base: string
   startingCash: number
+  dateOfBirth: string
+  showAge: boolean
 }
 
 export const useProjectionStore = defineStore('projection', () => {
@@ -30,6 +32,8 @@ export const useProjectionStore = defineStore('projection', () => {
   const to   = ref('2055-12')
   const base = ref('2026-05')
   const startingCash = ref(0)
+  const dateOfBirth = ref('')
+  const showAge = ref(false)
 
   const result = ref<ProjectionResponse | null>(null)
   const loading = ref(false)
@@ -115,6 +119,8 @@ export const useProjectionStore = defineStore('projection', () => {
       to: to.value,
       base: base.value,
       startingCash: startingCash.value,
+      dateOfBirth: dateOfBirth.value,
+      showAge: showAge.value,
     }
   }
 
@@ -140,6 +146,8 @@ export const useProjectionStore = defineStore('projection', () => {
     if (typeof plan?.to === 'string') to.value = plan.to
     if (typeof plan?.base === 'string') base.value = plan.base
     if (typeof plan?.startingCash === 'number') startingCash.value = plan.startingCash
+    if (typeof plan?.dateOfBirth === 'string') dateOfBirth.value = plan.dateOfBirth
+    if (typeof plan?.showAge === 'boolean') showAge.value = plan.showAge
     editingIndex.value = null
   }
 
@@ -161,7 +169,7 @@ export const useProjectionStore = defineStore('projection', () => {
     // corrupt or unavailable storage — start fresh, non-fatal
   }
 
-  watch([items, scenarios, from, to, base, startingCash], () => {
+  watch([items, scenarios, from, to, base, startingCash, dateOfBirth, showAge], () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toPlan()))
     } catch {
@@ -169,5 +177,5 @@ export const useProjectionStore = defineStore('projection', () => {
     }
   }, { deep: true })
 
-  return { items, scenarios, from, to, base, startingCash, result, loading, error, editingIndex, adding, formOpen, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, startAdd, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
+  return { items, scenarios, from, to, base, startingCash, dateOfBirth, showAge, result, loading, error, editingIndex, adding, formOpen, hasWarnings, runProjection, addItem, updateItem, removeItem, moveItem, startEdit, startAdd, cancelEdit, toPlan, applyPlan, exportPlan, importPlan }
 })

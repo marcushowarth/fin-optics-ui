@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useProjectionStore } from '../stores/projection'
+import MonthPicker from './MonthPicker.vue'
 import type { ScenarioDefinition } from '../types'
 
 const store = useProjectionStore()
@@ -44,6 +45,20 @@ function removeScenario(i: number) {
           <button class="remove" aria-label="Remove scenario" :disabled="store.scenarios.length <= 1" @click="removeScenario(i)">✕</button>
         </div>
         <button class="add" @click="addScenario">+ Add scenario</button>
+      </section>
+
+      <section>
+        <h3>Age</h3>
+        <div class="rows">
+          <label>
+            <input type="checkbox" v-model="store.showAge" />
+            Show age instead of calendar date
+          </label>
+          <label>
+            Date of birth
+            <MonthPicker v-model="store.dateOfBirth" />
+          </label>
+        </div>
       </section>
     </div>
   </details>

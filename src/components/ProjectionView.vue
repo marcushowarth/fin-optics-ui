@@ -6,6 +6,8 @@ import { money } from '../format'
 
 const store = useProjectionStore()
 
+const ageFrom = computed(() => (store.showAge && store.dateOfBirth ? store.dateOfBirth : null))
+
 const granular = ref(false)
 const infoExpanded = ref(false)
 const infoHidden = ref(localStorage.getItem('fin-optics-info-hidden') === '1')
@@ -77,6 +79,7 @@ const cashSeries = computed<Series[]>(() => {
         :zero-line="true"
         :primary-only="true"
         :liquidity-colors="true"
+        :age-from="ageFrom"
       />
     </section>
 
@@ -122,6 +125,7 @@ const cashSeries = computed<Series[]>(() => {
         :primary-only="!granular"
         :stacked="granular"
         :zero-line="granular"
+        :age-from="ageFrom"
       />
     </section>
   </div>

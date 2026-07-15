@@ -7,3 +7,11 @@ export function money(v: number): string {
   if (abs >= 1_000)             return `${sign}£${(abs / 1_000).toFixed(0)}k`
   return `${sign}£${abs.toFixed(0)}`
 }
+
+// Whole years between a 'YYYY-MM' date of birth and a chart timestamp (ms).
+export function ageAtTimestamp(ts: number, dobYearMonth: string): number {
+  const [dobY, dobM] = dobYearMonth.split('-').map(Number)
+  const d = new Date(ts)
+  const totalMonths = (d.getUTCFullYear() - dobY) * 12 + (d.getUTCMonth() - (dobM - 1))
+  return Math.floor(totalMonths / 12)
+}

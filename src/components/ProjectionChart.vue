@@ -5,7 +5,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapPiecewiseComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { money } from '../format'
+import { money, ageAtTimestamp } from '../format'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapPiecewiseComponent, CanvasRenderer])
 
@@ -17,6 +17,7 @@ const props = defineProps<{
   primaryOnly?: boolean                             // start with only the first series visible
   stacked?: boolean                                 // stacked area breakdown mode
   liquidityColors?: boolean                         // colour the primary line/area by sign (green above zero, red below)
+  ageFrom?: string | null                            // 'YYYY-MM' date of birth — show age instead of calendar date when set
 }>()
 
 // Reuses the app's existing brand colours (App.vue run-btn green, warning-banner
@@ -76,14 +77,23 @@ const warningRanges = computed(() => {
 const option = computed(() => ({
   tooltip: {
     trigger: 'axis',
-    axisPointer: { label: { formatter: (p: { value: number }) => monthLabel.value.get(p.value) ?? '' } },
+    axisPointer: {
+      label: {
+        formatter: (p: { value: number }) =>
+          props.ageFrom
+            ? `Age ${ageAtTimestamp(p.value, props.ageFrom)}`
+            : (monthLabel.value.get(p.value) ?? ''),
+      },
+    },
     valueFormatter: (v: number | null) => (v == null ? '—' : money(v)),
   },
   legend: { top: 0, right: 0, selected: legendSelected.value },
   grid: { left: 64, right: 16, top: 32, bottom: 56 },
   xAxis: {
     type: 'time',
-    axisLabel: { formatter: { year: '{yyyy}', month: '{MMM}' } },
+    axisLabel: props.ageFrom
+      ? { formatter: (v: number) => String(ageAtTimestamp(v, props.ageFrom!)) }
+      : { formatter: { year: '{yyyy}', month: '{MMM}' } },
     minInterval: 3600 * 1000 * 24 * 28,
   },
   yAxis: {

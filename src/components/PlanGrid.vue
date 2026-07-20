@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import type { ItemType, FinancialItem } from '../types'
+import { itemDetails, type DetailRow } from '../lib/itemDetails'
+import { AMOUNT_STEP } from '../lib/amountStep'
 
 const store = useProjectionStore()
 
@@ -87,6 +89,37 @@ function onDragEnd() {
   dragIndex.value = null
   dragOverIndex.value = null
 }
+
+// --- Full-detail hover tooltip -----------------------------------------------
+// The Grid only surfaces Type/Name/Amount inline (Start, End, Rate etc. are
+// edited in the full item modal — see AMOUNT_FIELD above). Marcus wants the
+// rest visible on hover without opening that modal. Attached at row level:
+// mouseenter/mouseleave don't bubble, so moving the cursor between cells
+// (including the Name/Amount inputs) doesn't retrigger or cancel the hover —
+// and the tooltip itself is a fixed, pointer-events:none overlay, so it can
+// never intercept clicks/focus meant for those inputs.
+const HOVER_DELAY_MS = 350
+let hoverTimer: ReturnType<typeof setTimeout> | undefined
+const hoveredIndex = ref<number | null>(null)
+const tooltipPos = ref<{ x: number; y: number } | null>(null)
+const tooltipRows = ref<DetailRow[]>([])
+
+function onRowEnter(i: number, e: MouseEvent) {
+  clearTimeout(hoverTimer)
+  const x = e.clientX
+  const y = e.clientY
+  hoverTimer = setTimeout(() => {
+    hoveredIndex.value = i
+    tooltipPos.value = { x, y }
+    tooltipRows.value = itemDetails(store.items[i])
+  }, HOVER_DELAY_MS)
+}
+function onRowLeave() {
+  clearTimeout(hoverTimer)
+  hoveredIndex.value = null
+  tooltipPos.value = null
+}
+onUnmounted(() => clearTimeout(hoverTimer))
 </script>
 
 <template>
@@ -108,6 +141,7 @@ function onDragEnd() {
           v-for="(item, i) in store.items" :key="i"
           :class="{ editing: store.editingIndex === i, dragging: dragIndex === i, 'drag-over': dragOverIndex === i && dragIndex !== i }"
           @dragover="onDragOver(i, $event)" @drop="onDrop(i)" @dragend="onDragEnd"
+          @mouseenter="onRowEnter(i, $event)" @mouseleave="onRowLeave"
         >
           <td class="handle-cell">
             <span class="handle" draggable="true" @dragstart="onDragStart(i, $event)" aria-label="Drag to reorder">⠿</span>
@@ -118,7 +152,7 @@ function onDragEnd() {
           </td>
           <td class="num">
             <input
-              v-if="AMOUNT_FIELD[item.type]" class="cell num" type="number" step="0.01"
+              v-if="AMOUNT_FIELD[item.type]" class="cell num" type="number" :step="AMOUNT_STEP[item.type]"
               :value="field(item, AMOUNT_FIELD[item.type])"
               @change="onNumber(i, AMOUNT_FIELD[item.type], $event)"
             />
@@ -137,6 +171,16 @@ function onDragEnd() {
         </tr>
       </tbody>
     </table>
+
+    <div
+      v-if="hoveredIndex !== null && tooltipPos" class="item-tooltip"
+      :style="{ left: `${tooltipPos.x + 14}px`, top: `${tooltipPos.y + 14}px` }"
+    >
+      <div v-for="row in tooltipRows" :key="row.label" class="tooltip-row">
+        <span class="tooltip-label">{{ row.label }}:</span>
+        <span class="tooltip-value">{{ row.value }}</span>
+      </div>
+    </div>
   </details>
 </template>
 
@@ -198,4 +242,21 @@ tr.drag-over td { border-top: 2px solid #1a5c3a; }
 .confirm-text { color: #c00; font-size: 0.75rem; margin-right: 0.2rem; }
 .confirm-yes:hover { color: #1a5c3a; }
 .confirm-no:hover { color: #c00; }
+
+/* Full-detail hover tooltip — same dark/light palette as PlanTimeline.vue's
+   .resize-tooltip, extended to lay out multiple label:value rows. */
+.item-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: #222;
+  color: #fff;
+  padding: 6px 9px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  z-index: 200;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.tooltip-label { color: #bbb; margin-right: 0.4rem; }
+.tooltip-value { font-weight: 600; }
 </style>

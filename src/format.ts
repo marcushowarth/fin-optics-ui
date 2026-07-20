@@ -8,6 +8,14 @@ export function money(v: number): string {
   return `${sign}£${abs.toFixed(0)}`
 }
 
+// Exact (non-abbreviated) £ formatting for a single item's fields — money()
+// above is deliberately lossy (k/m/bn) for chart axis labels where the scale
+// varies hugely; item-level amounts are the figures the user typed into
+// ItemForm.vue and should read back precisely, with thousands separators.
+export function formatCurrency(v: number): string {
+  return v.toLocaleString('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 2 })
+}
+
 // Whole years between a 'YYYY-MM' date of birth and a chart timestamp (ms).
 export function ageAtTimestamp(ts: number, dobYearMonth: string): number {
   const [dobY, dobM] = dobYearMonth.split('-').map(Number)

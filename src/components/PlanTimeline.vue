@@ -196,14 +196,16 @@ function itemTitle(item: FinancialItem): string {
 <template>
   <details class="plan-timeline" open>
     <summary>
-      <span>Items ({{ store.items.length }})</span>
-      <span class="granularity-toggle">
-        <button
-          v-for="g in GRANULARITIES" :key="g" type="button"
-          :class="{ active: granularity === g }"
-          @click.prevent="granularity = g"
-        >{{ GRANULARITY_LABELS[g] }}</button>
-      </span>
+      <div class="summary-row">
+        <span>Items ({{ store.items.length }})</span>
+        <span class="granularity-toggle">
+          <button
+            v-for="g in GRANULARITIES" :key="g" type="button"
+            :class="{ active: granularity === g }"
+            @click.prevent="granularity = g"
+          >{{ GRANULARITY_LABELS[g] }}</button>
+        </span>
+      </div>
     </summary>
 
     <p v-if="store.items.length === 0" class="empty">No items yet.</p>
@@ -288,6 +290,8 @@ summary {
   color: #555;
   padding: 0.3rem 0;
   list-style: revert;
+}
+.summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;

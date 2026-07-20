@@ -80,4 +80,19 @@ describe('pxDeltaToMonths', () => {
   it('is 0 when pxPerMonth is not positive (defensive, avoids div/0)', () => {
     expect(pxDeltaToMonths(100, 0)).toBe(0)
   })
+
+  describe('with a snapMonths argument', () => {
+    it('defaults to 1 (unchanged month-level rounding) when omitted', () => {
+      expect(pxDeltaToMonths(64, 64)).toBe(pxDeltaToMonths(64, 64, 1))
+      expect(pxDeltaToMonths(40, 64)).toBe(pxDeltaToMonths(40, 64, 1))
+    })
+    it('rounds to the nearest whole year when snapMonths=12', () => {
+      const pxPerMonth = 108 / 60 // fiveYear scale: 108px per 60-month column
+      expect(pxDeltaToMonths(0, pxPerMonth, 12)).toBe(0)
+      expect(pxDeltaToMonths(pxPerMonth * 12, pxPerMonth, 12)).toBe(12)
+      expect(pxDeltaToMonths(pxPerMonth * 6, pxPerMonth, 12)).toBe(12) // rounds up to nearest year
+      expect(pxDeltaToMonths(pxPerMonth * 5, pxPerMonth, 12)).toBe(0) // rounds down (less than half a year)
+      expect(pxDeltaToMonths(-pxPerMonth * 12, pxPerMonth, 12)).toBe(-12)
+    })
+  })
 })

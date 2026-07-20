@@ -34,7 +34,7 @@ const itemsView = ref<'grid' | 'timeline'>('grid')
         <SettingsPanel />
 
         <div class="view-toggle">
-          <button class="view-toggle-btn" :class="{ active: itemsView === 'grid' }" @click="itemsView = 'grid'">Grid</button>
+          <button class="view-toggle-btn" :class="{ active: itemsView === 'grid' }" @click="itemsView = 'grid'">Details</button>
           <button class="view-toggle-btn" :class="{ active: itemsView === 'timeline' }" @click="itemsView = 'timeline'">Timeline</button>
         </div>
         <PlanGrid v-if="itemsView === 'grid'" />

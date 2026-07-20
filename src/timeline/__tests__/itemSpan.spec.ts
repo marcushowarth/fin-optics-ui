@@ -118,6 +118,14 @@ describe('shiftItemDates', () => {
     const shifted = shiftItemDates(item, 2) as LiabilityItem
     expect(shifted.start).toBe('2026-03')
   })
+
+  // A FinancialEventItem is a point marker in the timeline, not a bar — but it
+  // should still be draggable to a new date, same as a bar's whole-item move.
+  it("shifts a FinancialEventItem's date (dragging a one-off point marker)", () => {
+    const item: FinancialEventItem = { type: 'event', name: 'Wedding', description: '', date: '2028-06', amount: -20000 }
+    const shifted = shiftItemDates(item, 4) as FinancialEventItem
+    expect(shifted.date).toBe('2028-10')
+  })
 })
 
 describe('resizeItemEnd', () => {

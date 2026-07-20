@@ -181,13 +181,16 @@ function barStyle(i: number) {
   return { left: `${left}px`, width: `${width}px` }
 }
 
+// A point marker has no width/edges to resize — only 'move' drag applies,
+// same generic mousedown-based drag as a bar's whole-bar move (see
+// onBarPointerDown/beginBarDrag above), just with no resize handle offered.
+// Live preview follows the raw cursor during drag, same as barStyle.
 function markerStyle(i: number) {
   const s = spans.value[i]
-  return { left: `${monthsFromStart(s.start) * pxPerMonthValue.value + pxPerMonthValue.value / 2}px` }
-}
-
-function onMarkerClick(i: number) {
-  store.startEdit(i)
+  let left = monthsFromStart(s.start) * pxPerMonthValue.value + pxPerMonthValue.value / 2
+  const state = barDrag.value
+  if (state && state.index === i && state.kind === 'move') left += state.previewDeltaPx
+  return { left: `${left}px` }
 }
 
 function itemTitle(item: FinancialItem): string {
@@ -245,8 +248,10 @@ function itemTitle(item: FinancialItem): string {
             >
               <div
                 v-if="spans[i].kind === 'point'"
-                class="marker" :style="markerStyle(i)" :title="itemTitle(item)"
-                @click="onMarkerClick(i)"
+                class="marker"
+                :class="{ dragging: barDrag?.index === i, editing: store.editingIndex === i }"
+                :style="markerStyle(i)" :title="itemTitle(item)"
+                @mousedown="onBarPointerDown(i, $event)"
               ></div>
               <div
                 v-else
@@ -430,9 +435,13 @@ summary {
   transform: translate(-50%, -50%) rotate(45deg);
   background: #c9861a;
   box-shadow: 0 0 0 2px #fff;
-  cursor: pointer;
+  cursor: grab;
+  transition: left 150ms ease;
 }
 .marker:hover { background: #a4232f; }
+.marker:active { cursor: grabbing; }
+.marker.dragging { transition: none; opacity: 0.85; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); z-index: 3; }
+.marker.editing { outline: 2px solid #1a5c3a; outline-offset: 1px; }
 
 .resize-tooltip {
   position: fixed;

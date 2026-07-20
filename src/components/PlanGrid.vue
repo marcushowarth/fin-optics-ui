@@ -3,6 +3,7 @@ import { ref, onUnmounted } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import type { ItemType, FinancialItem } from '../types'
 import { itemDetails, type DetailRow } from '../lib/itemDetails'
+import { AMOUNT_STEP } from '../lib/amountStep'
 
 const store = useProjectionStore()
 
@@ -151,7 +152,7 @@ onUnmounted(() => clearTimeout(hoverTimer))
           </td>
           <td class="num">
             <input
-              v-if="AMOUNT_FIELD[item.type]" class="cell num" type="number" step="0.01"
+              v-if="AMOUNT_FIELD[item.type]" class="cell num" type="number" :step="AMOUNT_STEP[item.type]"
               :value="field(item, AMOUNT_FIELD[item.type])"
               @change="onNumber(i, AMOUNT_FIELD[item.type], $event)"
             />

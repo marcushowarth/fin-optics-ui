@@ -6,6 +6,7 @@ import type {
   ItemType, AssetItem, InvestmentItem,
   IncomeItem, ExpenditureItem, LiabilityItem, FinancialEventItem, FinancialItem,
 } from '../types'
+import { STEP_LARGE, STEP_MEDIUM, STEP_SMALL } from '../lib/amountStep'
 
 const store = useProjectionStore()
 
@@ -256,7 +257,7 @@ function submit() {
 </script>
 
 <template>
-  <form class="item-form" @submit.prevent="submit">
+  <form class="item-form" novalidate @submit.prevent="submit">
     <header class="wizard-head">
       <h2>{{ isEditing ? 'Edit Item' : 'Add Item' }}</h2>
       <span class="progress">Step {{ step + 1 }}/{{ steps.length }} · {{ STEP_TITLES[currentStep] }}</span>
@@ -305,20 +306,20 @@ function submit() {
     <!-- Step: amounts -->
     <div v-else class="step">
       <template v-if="type === 'asset'">
-        <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" :step="STEP_LARGE" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
       </template>
       <template v-else-if="type === 'investment'">
-        <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" :step="STEP_LARGE" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
-        <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" :step="STEP_SMALL" /></div>
       </template>
       <template v-else-if="type === 'income'">
-        <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" :step="STEP_SMALL" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
       </template>
       <template v-else-if="type === 'expenditure'">
-        <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" :step="STEP_SMALL" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
       </template>
       <template v-else-if="type === 'event'">
@@ -329,12 +330,12 @@ function submit() {
             <option value="in">Money in</option>
           </select>
         </div>
-        <div class="row"><label>Amount (£)</label><input v-model.number="eventAmount" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Amount (£)</label><input v-model.number="eventAmount" type="number" min="0" :step="STEP_MEDIUM" /></div>
       </template>
       <template v-else-if="type === 'liability'">
-        <div class="row"><label>Balance (£)</label><input v-model.number="balance" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Balance (£)</label><input v-model.number="balance" type="number" min="0" :step="STEP_LARGE" /></div>
         <div class="row"><label>Annual Interest Rate (%)</label><input v-model.number="annualInterestRate" type="number" step="0.001" /></div>
-        <div class="row"><label>Monthly Repayment (£)</label><input v-model.number="monthlyRepayment" type="number" min="0" step="0.01" /></div>
+        <div class="row"><label>Monthly Repayment (£)</label><input v-model.number="monthlyRepayment" type="number" min="0" :step="STEP_SMALL" /></div>
       </template>
     </div>
 

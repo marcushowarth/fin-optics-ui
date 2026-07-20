@@ -1,13 +1,20 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useProjectionStore } from './stores/projection'
 import ItemForm from './components/ItemForm.vue'
 import PlanGrid from './components/PlanGrid.vue'
+import PlanTimeline from './components/PlanTimeline.vue'
 import PlanToolbar from './components/PlanToolbar.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import ProjectionView from './components/ProjectionView.vue'
 import AppFooter from './components/AppFooter.vue'
 
 const store = useProjectionStore()
+
+// Grid and Timeline are two views onto the same store.items — same pattern as
+// the Total/Breakdown toggle in ProjectionView.vue. The grid stays available
+// (not replaced); this just adds a second way to look at the same plan.
+const itemsView = ref<'grid' | 'timeline'>('grid')
 </script>
 
 <template>
@@ -25,7 +32,14 @@ const store = useProjectionStore()
           <p v-if="store.error" class="error inline-error">{{ store.error }}</p>
         </div>
         <SettingsPanel />
-        <PlanGrid />
+
+        <div class="view-toggle">
+          <button class="view-toggle-btn" :class="{ active: itemsView === 'grid' }" @click="itemsView = 'grid'">Grid</button>
+          <button class="view-toggle-btn" :class="{ active: itemsView === 'timeline' }" @click="itemsView = 'timeline'">Timeline</button>
+        </div>
+        <PlanGrid v-if="itemsView === 'grid'" />
+        <PlanTimeline v-else />
+
         <button class="add-item-btn" @click="store.startAdd">+ Add Items</button>
 
         <!-- Adding and editing both open the same form in a modal, so the
@@ -80,6 +94,18 @@ h1 { margin: 0 0 0.25rem; }
   font-size: 0.9rem;
 }
 .add-item-btn:hover { background: #eef6f0; }
+.view-toggle { display: flex; gap: 0.4rem; align-self: flex-start; }
+.view-toggle-btn {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+}
+.view-toggle-btn:hover { border-color: #1a5c3a; color: #1a5c3a; }
+.view-toggle-btn.active { background: #1a5c3a; border-color: #1a5c3a; color: #fff; }
 </style>
 
 <style>

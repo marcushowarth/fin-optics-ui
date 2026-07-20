@@ -56,8 +56,12 @@ export function shortMonthLabel(ym: string): string {
   return `${MONTH_LABELS[m - 1]} ${y}`
 }
 
-/** Round a horizontal pixel delta to the nearest whole month at the given scale. */
-export function pxDeltaToMonths(deltaPx: number, pxPerMonth: number): number {
+/**
+ * Round a horizontal pixel delta to the nearest whole month at the given
+ * scale, or the nearest multiple of `snapMonths` when a coarser snap unit is
+ * requested (e.g. 12 to snap to whole years at zoomed-out granularities).
+ */
+export function pxDeltaToMonths(deltaPx: number, pxPerMonth: number, snapMonths = 1): number {
   if (pxPerMonth <= 0) return 0
-  return Math.round(deltaPx / pxPerMonth)
+  return Math.round(deltaPx / pxPerMonth / snapMonths) * snapMonths
 }

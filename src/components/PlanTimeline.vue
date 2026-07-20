@@ -3,7 +3,7 @@ import { computed, onUnmounted, ref } from 'vue'
 import { useProjectionStore } from '../stores/projection'
 import type { FinancialItem, ItemType } from '../types'
 import { addMonths, clampYm, monthIndex, monthSpan, pxDeltaToMonths, shortMonthLabel } from '../timeline/dateMath'
-import { buildColumns, COLUMN_WIDTH_PX, GRANULARITIES, pxPerMonth, type Granularity } from '../timeline/columnScale'
+import { buildColumns, COLUMN_WIDTH_PX, GRANULARITIES, pxPerMonth, SNAP_MONTHS, type Granularity } from '../timeline/columnScale'
 import { computeItemSpan, hasDrawdownPhase, isResizable, resizeItemEnd, shiftItemDates, type ItemSpan } from '../timeline/itemSpan'
 
 const store = useProjectionStore()
@@ -17,7 +17,9 @@ const TYPE_LABELS: Record<ItemType, string> = {
   'event':        'One-off',
 }
 
-const GRANULARITY_LABELS: Record<Granularity, string> = { month: 'Month', quarter: 'Quarter', year: 'Year' }
+const GRANULARITY_LABELS: Record<Granularity, string> = {
+  month: 'Month', quarter: 'Quarter', year: 'Year', fiveYear: '5yr', decade: 'Decade',
+}
 
 // Default: quarter granularity + horizontal scroll (see timeline/columnScale.ts
 // for the full reasoning) — a 30-year plan renders as ~120 quarter columns,
@@ -119,7 +121,7 @@ function onResizePointerDown(i: number, e: MouseEvent) { beginBarDrag(i, 'resize
 // delta — used both for the floating label and the eventual store update.
 function previewEndMonth(state: BarDragState): string {
   const span = spans.value[state.index]
-  const deltaMonths = pxDeltaToMonths(state.previewDeltaPx, pxPerMonthValue.value)
+  const deltaMonths = pxDeltaToMonths(state.previewDeltaPx, pxPerMonthValue.value, SNAP_MONTHS[granularity.value])
   const minEnd = addMonths(span.start, 1)
   return clampYm(addMonths(span.end, deltaMonths), minEnd, store.to)
 }
@@ -151,7 +153,7 @@ function onBarDragUp() {
     store.startEdit(state.index)
     return
   }
-  const deltaMonths = pxDeltaToMonths(state.previewDeltaPx, pxPerMonthValue.value)
+  const deltaMonths = pxDeltaToMonths(state.previewDeltaPx, pxPerMonthValue.value, SNAP_MONTHS[granularity.value])
   if (deltaMonths === 0) return // dragged, but not far enough to cross a month boundary
 
   const item = store.items[state.index]

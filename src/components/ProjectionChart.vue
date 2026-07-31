@@ -5,7 +5,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapPiecewiseComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { money, ageAtTimestamp } from '../format'
+import { money, formatFlow, ageAtTimestamp } from '../format'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapPiecewiseComponent, CanvasRenderer])
 
@@ -86,7 +86,13 @@ const option = computed(() => ({
             : (monthLabel.value.get(p.value) ?? ''),
       },
     },
-    valueFormatter: (v: number | null) => (v == null ? '—' : `${money(v)}${props.valueUnit ?? ''}`),
+    // A per-value unit (e.g. '/mo') means these are several similar-scale flow
+    // amounts shown side by side — money()'s abbreviation cutover at £1,000 reads
+    // as inconsistent there (£2k next to £712), so formatFlow() only abbreviates
+    // above £10k. Totals like Net Worth/Cash Position span far wider ranges,
+    // where money()'s abbreviation earns its keep throughout.
+    valueFormatter: (v: number | null) =>
+      v == null ? '—' : props.valueUnit ? `${formatFlow(v)}${props.valueUnit}` : money(v),
   },
   legend: { top: 0, right: 0, selected: legendSelected.value },
   grid: { left: 64, right: 16, top: 32, bottom: 56 },

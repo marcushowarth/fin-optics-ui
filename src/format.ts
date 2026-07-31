@@ -12,8 +12,17 @@ export function money(v: number): string {
 // above is deliberately lossy (k/m/bn) for chart axis labels where the scale
 // varies hugely; item-level amounts are the figures the user typed into
 // ItemForm.vue and should read back precisely, with thousands separators.
-export function formatCurrency(v: number): string {
-  return v.toLocaleString('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 2 })
+export function formatCurrency(v: number, maximumFractionDigits = 2): string {
+  return v.toLocaleString('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits })
+}
+
+// Exact pounds below £10k, then falls back to money()'s k/m abbreviation —
+// avoids money()'s harsh cutover at £1,000 (where £999 and £2,000 look wildly
+// different in precision) for the modest-scale values a monthly cash flow
+// tooltip shows side by side, while still keeping a rare large flow compact.
+// Math.abs() keeps the £10k band symmetric either side of zero.
+export function formatFlow(v: number): string {
+  return Math.abs(v) >= 10_000 ? money(v) : formatCurrency(v, 0)
 }
 
 // Whole years between a 'YYYY-MM' date of birth and a chart timestamp (ms).

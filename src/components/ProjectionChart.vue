@@ -18,6 +18,7 @@ const props = defineProps<{
   stacked?: boolean                                 // stacked area breakdown mode
   liquidityColors?: boolean                         // colour the primary line/area by sign (green above zero, red below)
   ageFrom?: string | null                            // 'YYYY-MM' date of birth — show age instead of calendar date when set
+  valueUnit?: string                                 // suffix for tooltip values, e.g. '/mo' for a flow rather than a running balance
 }>()
 
 // Reuses the app's existing brand colours (App.vue run-btn green, warning-banner
@@ -85,7 +86,7 @@ const option = computed(() => ({
             : (monthLabel.value.get(p.value) ?? ''),
       },
     },
-    valueFormatter: (v: number | null) => (v == null ? '—' : money(v)),
+    valueFormatter: (v: number | null) => (v == null ? '—' : `${money(v)}${props.valueUnit ?? ''}`),
   },
   legend: { top: 0, right: 0, selected: legendSelected.value },
   grid: { left: 64, right: 16, top: 32, bottom: 56 },

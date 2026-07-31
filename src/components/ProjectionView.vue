@@ -84,7 +84,11 @@ const cashFlowItemSeries = computed<Series[]>(() => {
       <div class="chart-header">
         <div>
           <h3 class="chart-title">Cash Position</h3>
-          <p class="chart-sub">Liquid cash running balance — shaded red below zero.</p>
+          <p class="chart-sub">
+            {{ cashGranular
+              ? 'Monthly cash flow per item — income adds, expenditure/repayments/drawdowns subtract.'
+              : 'Liquid cash running balance — shaded red below zero.' }}
+          </p>
         </div>
         <button
           class="granular-btn"
@@ -103,6 +107,7 @@ const cashFlowItemSeries = computed<Series[]>(() => {
         :primary-only="!cashGranular"
         :stacked="cashGranular"
         :liquidity-colors="!cashGranular"
+        :value-unit="cashGranular ? '/mo' : undefined"
         :age-from="ageFrom"
       />
     </section>

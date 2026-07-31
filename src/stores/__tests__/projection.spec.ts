@@ -13,7 +13,7 @@ vi.stubGlobal('localStorage', {
 
 vi.mock('../../api/projection', () => ({
   fetchProjection: vi.fn().mockResolvedValue({
-    nominal: { netWorth: {}, cashPosition: {}, itemPositions: {}, warnings: [] },
+    nominal: { netWorth: {}, cashPosition: {}, itemPositions: {}, itemFlows: {}, warnings: [] },
     realTerms: null,
   }),
 }))

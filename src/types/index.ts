@@ -86,6 +86,7 @@ export interface NominalProjection {
   netWorth: Record<string, number>
   cashPosition: Record<string, number>
   itemPositions: Record<string, Record<string, number>>
+  itemFlows: Record<string, Record<string, number>>
   warnings: SolvencyWarning[]
 }
 

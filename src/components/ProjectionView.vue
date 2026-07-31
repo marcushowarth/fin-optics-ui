@@ -9,6 +9,7 @@ const store = useProjectionStore()
 const ageFrom = computed(() => (store.showAge && store.dateOfBirth ? store.dateOfBirth : null))
 
 const granular = ref(false)
+const cashGranular = ref(false)
 const infoExpanded = ref(false)
 const infoHidden = ref(localStorage.getItem('fin-optics-info-hidden') === '1')
 
@@ -65,20 +66,43 @@ const cashSeries = computed<Series[]>(() => {
   if (!r) return []
   return build(r.nominal.cashPosition, r.realTerms?.cashPosition)
 })
+
+const cashFlowItemSeries = computed<Series[]>(() => {
+  const r = store.result
+  if (!r) return []
+  const ms = months.value
+  return Object.entries(r.nominal.itemFlows).map(([name, values]) => ({
+    name,
+    data: ms.map(m => values[m] ?? null),
+  }))
+})
 </script>
 
 <template>
   <div v-if="store.result" class="charts">
     <section class="chart-block">
-      <h3 class="chart-title">Cash Position</h3>
-      <p class="chart-sub">Liquid cash running balance — shaded red below zero.</p>
+      <div class="chart-header">
+        <div>
+          <h3 class="chart-title">Cash Position</h3>
+          <p class="chart-sub">Liquid cash running balance — shaded red below zero.</p>
+        </div>
+        <button
+          class="granular-btn"
+          :class="{ active: cashGranular }"
+          @click="cashGranular = !cashGranular"
+        >
+          {{ cashGranular ? 'Total' : 'Breakdown' }}
+        </button>
+      </div>
       <ProjectionChart
+        :key="cashGranular ? 'cash-items' : 'cash-total'"
         :months="months"
-        :series="cashSeries"
+        :series="cashGranular ? cashFlowItemSeries : cashSeries"
         :warnings="warningMonths"
         :zero-line="true"
-        :primary-only="true"
-        :liquidity-colors="true"
+        :primary-only="!cashGranular"
+        :stacked="cashGranular"
+        :liquidity-colors="!cashGranular"
         :age-from="ageFrom"
       />
     </section>

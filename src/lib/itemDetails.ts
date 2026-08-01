@@ -14,9 +14,10 @@
 // Optional fields with a real "unset" state that still matters positionally
 // (Asset saleDate, Income/Expenditure end) always get a row, falling back to
 // "Ongoing" — matching how the Timeline draws them as open-ended bars.
-// Fields that are just plain absent when unused (Investment monthlyContribution /
-// contributionGrowthRate / contributionEnd / drawdownStart / monthlyDrawdown,
-// Description) are omitted entirely rather than shown blank.
+// Fields that are just plain absent when unused (Investment contributionStart /
+// monthlyContribution / contributionGrowthRate / contributionEnd / drawdownStart /
+// monthlyDrawdown / drawdownGrowthRate, Description) are omitted entirely rather
+// than shown blank.
 
 import type { FinancialItem } from '../types'
 import { shortMonthLabel } from '../timeline/dateMath'
@@ -48,11 +49,13 @@ export function itemDetails(item: FinancialItem): DetailRow[] {
       rows.push({ label: 'Start', value: shortMonthLabel(item.start) })
       rows.push({ label: 'Start Value', value: formatCurrency(item.startValue) })
       rows.push({ label: 'Annual Growth Rate', value: pct(item.annualGrowthRate) })
+      if (item.contributionStart) rows.push({ label: 'Contribution Start', value: shortMonthLabel(item.contributionStart) })
       if (item.monthlyContribution !== undefined) rows.push({ label: 'Monthly Contribution', value: formatCurrency(item.monthlyContribution) })
       if (item.contributionGrowthRate !== undefined) rows.push({ label: 'Contribution Growth Rate', value: pct(item.contributionGrowthRate) })
       if (item.contributionEnd) rows.push({ label: 'Contribution End', value: shortMonthLabel(item.contributionEnd) })
       if (item.drawdownStart) rows.push({ label: 'Drawdown Start', value: shortMonthLabel(item.drawdownStart) })
       if (item.monthlyDrawdown !== undefined) rows.push({ label: 'Monthly Drawdown', value: formatCurrency(item.monthlyDrawdown) })
+      if (item.drawdownGrowthRate !== undefined) rows.push({ label: 'Drawdown Growth Rate', value: pct(item.drawdownGrowthRate) })
       break
 
     case 'income':

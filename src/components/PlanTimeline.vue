@@ -47,15 +47,17 @@ function barWidthPx(i: number): number {
   return (monthsFromStart(s.end) - monthsFromStart(s.start) + 1) * pxPerMonthValue.value
 }
 
-// Investment phase colouring (#946 step 7, extended by #975 for contributions):
-// split the bar into up to three sub-divs — contribution, gap (pure growth, no
-// flow), drawdown — at contributionEnd/drawdownStart. Both rates are
-// authoritative and the ends are inferred (computeItemSpan already resolved
-// that); there's no drawdownEnd/contributionEnd-implied field to solve
-// backward from. Contribution always yields to drawdown if the two ever
-// overlap, mirroring Investment.iterate()'s own precedence in fin-model.
-interface PhaseSplit { contribPct: number; drawdownPct: number }
-const phaseSplits = computed<(PhaseSplit | null)[]>(() =>
+// Investment phase colouring (#946 step 7, extended by #975 for contributions
+// and a pre-contribution gap): split the bar into up to four consecutive
+// sub-divs in chronological order — gap (pure growth, no flow) before
+// contributions begin, contribution, gap before drawdown, drawdown — at
+// contributionStart/contributionEnd/drawdownStart. All three rates are
+// authoritative and phase ends are inferred (computeItemSpan already resolved
+// that); there's no stored end field to solve backward from. Contribution
+// always yields to drawdown if the two ever overlap, mirroring
+// Investment.iterate()'s own precedence in fin-model.
+interface PhaseSegment { kind: 'contribution' | 'gap' | 'drawdown'; leftPct: number; widthPct: number }
+const phaseSplits = computed<(PhaseSegment[] | null)[]>(() =>
   store.items.map((item, i) => {
     const hasContrib = hasContributionPhase(item)
     const hasDraw = hasDrawdownPhase(item)
@@ -63,21 +65,45 @@ const phaseSplits = computed<(PhaseSplit | null)[]>(() =>
 
     const span = spans.value[i]
     const startIdx = monthsFromStart(span.start)
-    const totalMonths = monthsFromStart(span.end) - startIdx + 1
+    const endIdxExclusive = monthsFromStart(span.end) + 1
+    const totalMonths = endIdxExclusive - startIdx
     if (totalMonths <= 0) return null
 
     const drawdownIdx = hasDraw ? monthIndex(item.drawdownStart!, store.from) : null
 
-    let contribIdx = startIdx
+    let contribStartIdx: number | null = null
+    let contribEndIdx: number | null = null
     if (hasContrib) {
+      contribStartIdx = item.contributionStart ? monthIndex(item.contributionStart, store.from) : startIdx
       const rawEnd = item.contributionEnd
         ? monthIndex(item.contributionEnd, store.from)
-        : (drawdownIdx ?? monthsFromStart(span.end) + 1)
-      contribIdx = drawdownIdx !== null ? Math.min(rawEnd, drawdownIdx) : rawEnd
+        : (drawdownIdx ?? endIdxExclusive)
+      contribEndIdx = drawdownIdx !== null ? Math.min(rawEnd, drawdownIdx) : rawEnd
+      if (drawdownIdx !== null) contribStartIdx = Math.min(contribStartIdx, drawdownIdx)
     }
 
     const pct = (idx: number) => Math.min(100, Math.max(0, ((idx - startIdx) / totalMonths) * 100))
-    return { contribPct: pct(contribIdx), drawdownPct: pct(drawdownIdx ?? monthsFromStart(span.end) + 1) }
+
+    const segments: PhaseSegment[] = []
+    let cursor = startIdx
+
+    if (hasContrib && contribStartIdx! > cursor) {
+      segments.push({ kind: 'gap', leftPct: pct(cursor), widthPct: pct(contribStartIdx!) - pct(cursor) })
+      cursor = contribStartIdx!
+    }
+    if (hasContrib && contribEndIdx! > cursor) {
+      segments.push({ kind: 'contribution', leftPct: pct(cursor), widthPct: pct(contribEndIdx!) - pct(cursor) })
+      cursor = contribEndIdx!
+    }
+    if (drawdownIdx !== null && drawdownIdx > cursor) {
+      segments.push({ kind: 'gap', leftPct: pct(cursor), widthPct: pct(drawdownIdx) - pct(cursor) })
+      cursor = drawdownIdx
+    }
+    if (hasDraw) {
+      segments.push({ kind: 'drawdown', leftPct: pct(cursor), widthPct: pct(endIdxExclusive) - pct(cursor) })
+    }
+
+    return segments
   }),
 )
 
@@ -278,15 +304,11 @@ function itemTitle(item: FinancialItem): string {
                 :title="itemTitle(item)"
                 @mousedown="onBarPointerDown(i, $event)"
               >
-                <template v-if="phaseSplits[i]">
-                  <div v-if="hasContributionPhase(item)" class="phase contribution" :style="{ width: phaseSplits[i]!.contribPct + '%' }"></div>
-                  <div
-                    v-if="phaseSplits[i]!.drawdownPct > phaseSplits[i]!.contribPct"
-                    class="phase gap"
-                    :style="{ left: phaseSplits[i]!.contribPct + '%', width: (phaseSplits[i]!.drawdownPct - phaseSplits[i]!.contribPct) + '%' }"
-                  ></div>
-                  <div v-if="hasDrawdownPhase(item)" class="phase drawdown" :style="{ left: phaseSplits[i]!.drawdownPct + '%' }"></div>
-                </template>
+                <div
+                  v-for="(seg, si) in phaseSplits[i]" :key="si"
+                  class="phase" :class="seg.kind"
+                  :style="{ left: seg.leftPct + '%', width: seg.widthPct + '%' }"
+                ></div>
                 <span class="bar-label">{{ item.name }}</span>
                 <div
                   v-if="isResizable(item)" class="resize-handle" aria-label="Drag to change end date"
@@ -434,9 +456,9 @@ summary {
 .bar.has-phases { background: transparent; }
 
 .phase { position: absolute; top: 0; bottom: 0; }
-.phase.contribution { left: 0; background: #1b7a8c; }
+.phase.contribution { background: #1b7a8c; }
 .phase.gap { background: #5b3a91; }
-.phase.drawdown { right: 0; background: #c9861a; }
+.phase.drawdown { background: #c9861a; }
 
 .resize-handle {
   position: absolute;

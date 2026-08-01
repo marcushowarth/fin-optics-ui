@@ -118,6 +118,7 @@ export function shiftItemDates(item: FinancialItem, deltaMonths: number): Financ
       return {
         ...item,
         start: addMonths(item.start, deltaMonths),
+        contributionStart: item.contributionStart ? addMonths(item.contributionStart, deltaMonths) : item.contributionStart,
         contributionEnd: item.contributionEnd ? addMonths(item.contributionEnd, deltaMonths) : item.contributionEnd,
         drawdownStart: item.drawdownStart ? addMonths(item.drawdownStart, deltaMonths) : item.drawdownStart,
       }

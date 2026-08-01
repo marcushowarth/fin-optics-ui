@@ -27,11 +27,13 @@ const annualGrowthRate = ref<number | ''>('')
 const saleDate = ref('')
 
 // Investment contribution / drawdown
+const contributionStart = ref('')
 const monthlyContribution = ref<number | ''>('')
 const contributionGrowthRate = ref<number | ''>('')
 const contributionEnd = ref('')
 const drawdownStart = ref('')
 const monthlyDrawdown = ref<number | ''>('')
+const drawdownGrowthRate = ref<number | ''>('')
 
 // Income / Expenditure
 const monthlyAmount = ref<number | ''>('')
@@ -68,10 +70,19 @@ const NAME_PLACEHOLDERS: Record<ItemType, string> = {
 // amounts, every date field can default forward off `start` (see MonthPicker
 // :min) — no disabled guards needed; the engine validates the rest by running
 // the projection.
+//
+// Investment breaks this shared shape: it has three independent date+amount
+// concepts (core pot, contribution, drawdown) rather than one timing step
+// followed by one amounts step, so it gets its own four-step sequence with
+// each concept grouped together instead.
 
 const step = ref(0)
 
-const steps = computed<string[]>(() => ['basics', 'timing', 'amounts'])
+const steps = computed<string[]>(() =>
+  type.value === 'investment'
+    ? ['basics', 'amounts', 'contribution', 'drawdown']
+    : ['basics', 'timing', 'amounts'],
+)
 
 const currentStep = computed(() => steps.value[step.value])
 const isLast = computed(() => step.value === steps.value.length - 1)
@@ -93,9 +104,11 @@ function back() {
 }
 
 const STEP_TITLES: Record<string, string> = {
-  basics:  'Type & name',
-  timing:  'Timing',
-  amounts: 'Amounts',
+  basics:       'Type & name',
+  timing:       'Timing',
+  amounts:      'Amounts',
+  contribution: 'Contribution',
+  drawdown:     'Drawdown',
 }
 
 const isValid = computed(() => {
@@ -124,11 +137,13 @@ function reset() {
   startValue.value = ''
   annualGrowthRate.value = ''
   saleDate.value = ''
+  contributionStart.value = ''
   monthlyContribution.value = ''
   contributionGrowthRate.value = ''
   contributionEnd.value = ''
   drawdownStart.value = ''
   monthlyDrawdown.value = ''
+  drawdownGrowthRate.value = ''
   monthlyAmount.value = ''
   balance.value = ''
   annualInterestRate.value = ''
@@ -160,11 +175,13 @@ function load(item: FinancialItem) {
       start.value = item.start
       startValue.value = item.startValue
       annualGrowthRate.value = toPercent(item.annualGrowthRate)
+      contributionStart.value = item.contributionStart ?? ''
       monthlyContribution.value = item.monthlyContribution ?? ''
       contributionGrowthRate.value = item.contributionGrowthRate !== undefined ? toPercent(item.contributionGrowthRate) : ''
       contributionEnd.value = item.contributionEnd ?? ''
       drawdownStart.value = item.drawdownStart ?? ''
       monthlyDrawdown.value = item.monthlyDrawdown ?? ''
+      drawdownGrowthRate.value = item.drawdownGrowthRate !== undefined ? toPercent(item.drawdownGrowthRate) : ''
       break
     case 'income':
       start.value = item.start
@@ -227,11 +244,13 @@ function submit() {
     }
     case 'investment': {
       const inv: InvestmentItem = { ...base, type: 'investment', start: start.value, startValue: +startValue.value, annualGrowthRate: +annualGrowthRate.value / 100 }
+      if (contributionStart.value) inv.contributionStart = contributionStart.value
       if (monthlyContribution.value !== '') inv.monthlyContribution = +monthlyContribution.value
       if (contributionGrowthRate.value !== '') inv.contributionGrowthRate = +contributionGrowthRate.value / 100
       if (contributionEnd.value) inv.contributionEnd = contributionEnd.value
       if (drawdownStart.value) inv.drawdownStart = drawdownStart.value
       if (monthlyDrawdown.value !== '') inv.monthlyDrawdown = +monthlyDrawdown.value
+      if (drawdownGrowthRate.value !== '') inv.drawdownGrowthRate = +drawdownGrowthRate.value / 100
       item = inv
       break
     }
@@ -299,11 +318,6 @@ function submit() {
         <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
         <div class="row"><label>Sale Date</label><MonthPicker v-model="saleDate" :min="start" /></div>
       </template>
-      <template v-else-if="type === 'investment'">
-        <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
-        <div class="row"><label>Contribution End</label><MonthPicker v-model="contributionEnd" :min="start" /></div>
-        <div class="row"><label>Drawdown Start</label><MonthPicker v-model="drawdownStart" :min="start" /></div>
-      </template>
       <template v-else-if="type === 'income' || type === 'expenditure'">
         <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
         <div class="row"><label>End</label><MonthPicker v-model="end" :min="start" /></div>
@@ -317,7 +331,7 @@ function submit() {
     </div>
 
     <!-- Step: amounts -->
-    <div v-else class="step">
+    <div v-else-if="currentStep === 'amounts'" class="step">
       <template v-if="type === 'asset'">
         <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" :step="STEP_LARGE" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
@@ -325,9 +339,6 @@ function submit() {
       <template v-else-if="type === 'investment'">
         <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" :step="STEP_LARGE" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
-        <div class="row"><label>Monthly Contribution (£)</label><input v-model.number="monthlyContribution" type="number" min="0" :step="STEP_SMALL" /></div>
-        <div class="row"><label>Contribution Growth Rate (%)</label><input v-model.number="contributionGrowthRate" type="number" step="0.001" /></div>
-        <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" :step="STEP_SMALL" /></div>
       </template>
       <template v-else-if="type === 'income'">
         <div class="row"><label>Monthly Amount (£)</label><input v-model.number="monthlyAmount" type="number" min="0" :step="STEP_SMALL" /></div>
@@ -352,6 +363,22 @@ function submit() {
         <div class="row"><label>Annual Interest Rate (%)</label><input v-model.number="annualInterestRate" type="number" step="0.001" /></div>
         <div class="row"><label>Monthly Repayment (£)</label><input v-model.number="monthlyRepayment" type="number" min="0" :step="STEP_SMALL" /></div>
       </template>
+    </div>
+
+    <!-- Step: contribution (Investment only) -->
+    <div v-else-if="currentStep === 'contribution'" class="step">
+      <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
+      <div class="row"><label>Contribution Start</label><MonthPicker v-model="contributionStart" :min="start" /></div>
+      <div class="row"><label>Monthly Contribution (£)</label><input v-model.number="monthlyContribution" type="number" min="0" :step="STEP_SMALL" /></div>
+      <div class="row"><label>Contribution Growth Rate (%)</label><input v-model.number="contributionGrowthRate" type="number" step="0.001" /></div>
+      <div class="row"><label>Contribution End</label><MonthPicker v-model="contributionEnd" :min="contributionStart || start" /></div>
+    </div>
+
+    <!-- Step: drawdown (Investment only) -->
+    <div v-else class="step">
+      <div class="row"><label>Drawdown Start</label><MonthPicker v-model="drawdownStart" :min="start" /></div>
+      <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" :step="STEP_SMALL" /></div>
+      <div class="row"><label>Drawdown Growth Rate (%)</label><input v-model.number="drawdownGrowthRate" type="number" step="0.001" /></div>
     </div>
 
     <div class="nav">

@@ -124,6 +124,18 @@ describe('shiftItemDates', () => {
     expect(shifted.drawdownStart).toBe('2046-01')
   })
 
+  it('shifts an Investment contributionStart along with the other dates', () => {
+    const item: InvestmentItem = {
+      type: 'investment', name: 'SIPP', description: '', start: '2020-01', startValue: 50000, annualGrowthRate: 0.05,
+      contributionStart: '2022-06', monthlyContribution: 500, contributionEnd: '2040-12', drawdownStart: '2045-01',
+    }
+    const shifted = shiftItemDates(item, 12) as InvestmentItem
+    expect(shifted.start).toBe('2021-01')
+    expect(shifted.contributionStart).toBe('2023-06')
+    expect(shifted.contributionEnd).toBe('2041-12')
+    expect(shifted.drawdownStart).toBe('2046-01')
+  })
+
   it('shifts a Liability start only (no stored end field to move)', () => {
     const item: LiabilityItem = { type: 'liability', name: 'Mortgage', description: '', start: '2026-01', balance: 200000, annualInterestRate: 0.04, monthlyRepayment: 1200 }
     const shifted = shiftItemDates(item, 2) as LiabilityItem

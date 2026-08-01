@@ -24,11 +24,13 @@ export interface InvestmentItem extends FinancialItemBase {
   start: string
   startValue: number
   annualGrowthRate: number
+  contributionStart?: string
   monthlyContribution?: number
   contributionGrowthRate?: number
   contributionEnd?: string
   drawdownStart?: string
   monthlyDrawdown?: number
+  drawdownGrowthRate?: number
 }
 
 export interface IncomeItem extends FinancialItemBase {

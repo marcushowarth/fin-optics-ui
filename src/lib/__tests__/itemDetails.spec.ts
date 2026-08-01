@@ -81,6 +81,26 @@ describe('itemDetails', () => {
         { label: 'Monthly Drawdown', value: '£2,000.00' },
       ])
     })
+
+    it('includes Contribution Start and Drawdown Growth Rate when set', () => {
+      const item: InvestmentItem = {
+        type: 'investment', name: 'SIPP', description: '',
+        start: '2020-01', startValue: 50000, annualGrowthRate: 0.05,
+        contributionStart: '2022-06', monthlyContribution: 500, contributionGrowthRate: 0.03,
+        drawdownStart: '2045-01', monthlyDrawdown: 2000, drawdownGrowthRate: 0.02,
+      }
+      expect(itemDetails(item)).toEqual([
+        { label: 'Start', value: 'Jan 2020' },
+        { label: 'Start Value', value: '£50,000.00' },
+        { label: 'Annual Growth Rate', value: '5%' },
+        { label: 'Contribution Start', value: 'Jun 2022' },
+        { label: 'Monthly Contribution', value: '£500.00' },
+        { label: 'Contribution Growth Rate', value: '3%' },
+        { label: 'Drawdown Start', value: 'Jan 2045' },
+        { label: 'Monthly Drawdown', value: '£2,000.00' },
+        { label: 'Drawdown Growth Rate', value: '2%' },
+      ])
+    })
   })
 
   describe('IncomeItem', () => {

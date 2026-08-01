@@ -62,6 +62,25 @@ describe('itemDetails', () => {
         { label: 'Annual Growth Rate', value: '5%' },
       ])
     })
+
+    it('includes Monthly Contribution, Contribution Growth Rate and Contribution End when set', () => {
+      const item: InvestmentItem = {
+        type: 'investment', name: 'SIPP', description: '',
+        start: '2026-01', startValue: 50000, annualGrowthRate: 0.05,
+        monthlyContribution: 500, contributionGrowthRate: 0.03, contributionEnd: '2040-12',
+        drawdownStart: '2045-01', monthlyDrawdown: 2000,
+      }
+      expect(itemDetails(item)).toEqual([
+        { label: 'Start', value: 'Jan 2026' },
+        { label: 'Start Value', value: '£50,000.00' },
+        { label: 'Annual Growth Rate', value: '5%' },
+        { label: 'Monthly Contribution', value: '£500.00' },
+        { label: 'Contribution Growth Rate', value: '3%' },
+        { label: 'Contribution End', value: 'Dec 2040' },
+        { label: 'Drawdown Start', value: 'Jan 2045' },
+        { label: 'Monthly Drawdown', value: '£2,000.00' },
+      ])
+    })
   })
 
   describe('IncomeItem', () => {

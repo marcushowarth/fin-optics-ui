@@ -90,10 +90,11 @@ export function computeItemSpan(
 /**
  * Shift a bar item's dates by `deltaMonths`, preserving duration for the
  * types with a real editable end field (asset saleDate / income & expenditure
- * end). Investment's `drawdownStart` shifts along with `start` so the
- * accumulation/drawdown split stays proportionally the same. Liability has no
- * stored end to shift. A no-op FinancialEventItem case is included only for
- * exhaustiveness — the UI never offers horizontal drag on point markers.
+ * end). Investment's `contributionEnd`/`drawdownStart` shift along with
+ * `start` so the contribution/gap/drawdown split stays proportionally the
+ * same. Liability has no stored end to shift. A no-op FinancialEventItem case
+ * is included only for exhaustiveness — the UI never offers horizontal drag
+ * on point markers.
  */
 export function shiftItemDates(item: FinancialItem, deltaMonths: number): FinancialItem {
   if (deltaMonths === 0) return item
@@ -117,6 +118,7 @@ export function shiftItemDates(item: FinancialItem, deltaMonths: number): Financ
       return {
         ...item,
         start: addMonths(item.start, deltaMonths),
+        contributionEnd: item.contributionEnd ? addMonths(item.contributionEnd, deltaMonths) : item.contributionEnd,
         drawdownStart: item.drawdownStart ? addMonths(item.drawdownStart, deltaMonths) : item.drawdownStart,
       }
     case 'event':
@@ -150,4 +152,9 @@ export function isResizable(item: FinancialItem): boolean {
 /** Whether an Investment has a drawdown phase to colour (stretch goal, #946 step 7). */
 export function hasDrawdownPhase(item: FinancialItem): item is InvestmentItem {
   return item.type === 'investment' && !!item.drawdownStart
+}
+
+/** Whether an Investment has a contribution phase to colour (#975). */
+export function hasContributionPhase(item: FinancialItem): item is InvestmentItem {
+  return item.type === 'investment' && item.monthlyContribution !== undefined
 }

@@ -26,7 +26,10 @@ const startValue = ref<number | ''>('')
 const annualGrowthRate = ref<number | ''>('')
 const saleDate = ref('')
 
-// Investment drawdown
+// Investment contribution / drawdown
+const monthlyContribution = ref<number | ''>('')
+const contributionGrowthRate = ref<number | ''>('')
+const contributionEnd = ref('')
 const drawdownStart = ref('')
 const monthlyDrawdown = ref<number | ''>('')
 
@@ -121,6 +124,9 @@ function reset() {
   startValue.value = ''
   annualGrowthRate.value = ''
   saleDate.value = ''
+  monthlyContribution.value = ''
+  contributionGrowthRate.value = ''
+  contributionEnd.value = ''
   drawdownStart.value = ''
   monthlyDrawdown.value = ''
   monthlyAmount.value = ''
@@ -154,6 +160,9 @@ function load(item: FinancialItem) {
       start.value = item.start
       startValue.value = item.startValue
       annualGrowthRate.value = toPercent(item.annualGrowthRate)
+      monthlyContribution.value = item.monthlyContribution ?? ''
+      contributionGrowthRate.value = item.contributionGrowthRate !== undefined ? toPercent(item.contributionGrowthRate) : ''
+      contributionEnd.value = item.contributionEnd ?? ''
       drawdownStart.value = item.drawdownStart ?? ''
       monthlyDrawdown.value = item.monthlyDrawdown ?? ''
       break
@@ -218,6 +227,9 @@ function submit() {
     }
     case 'investment': {
       const inv: InvestmentItem = { ...base, type: 'investment', start: start.value, startValue: +startValue.value, annualGrowthRate: +annualGrowthRate.value / 100 }
+      if (monthlyContribution.value !== '') inv.monthlyContribution = +monthlyContribution.value
+      if (contributionGrowthRate.value !== '') inv.contributionGrowthRate = +contributionGrowthRate.value / 100
+      if (contributionEnd.value) inv.contributionEnd = contributionEnd.value
       if (drawdownStart.value) inv.drawdownStart = drawdownStart.value
       if (monthlyDrawdown.value !== '') inv.monthlyDrawdown = +monthlyDrawdown.value
       item = inv
@@ -289,6 +301,7 @@ function submit() {
       </template>
       <template v-else-if="type === 'investment'">
         <div class="row"><label>Start</label><MonthPicker v-model="start" :required="true" /></div>
+        <div class="row"><label>Contribution End</label><MonthPicker v-model="contributionEnd" :min="start" /></div>
         <div class="row"><label>Drawdown Start</label><MonthPicker v-model="drawdownStart" :min="start" /></div>
       </template>
       <template v-else-if="type === 'income' || type === 'expenditure'">
@@ -312,6 +325,8 @@ function submit() {
       <template v-else-if="type === 'investment'">
         <div class="row"><label>Start Value (£)</label><input v-model.number="startValue" type="number" min="0" :step="STEP_LARGE" /></div>
         <div class="row"><label>Annual Growth Rate (%)</label><input v-model.number="annualGrowthRate" type="number" step="0.001" /></div>
+        <div class="row"><label>Monthly Contribution (£)</label><input v-model.number="monthlyContribution" type="number" min="0" :step="STEP_SMALL" /></div>
+        <div class="row"><label>Contribution Growth Rate (%)</label><input v-model.number="contributionGrowthRate" type="number" step="0.001" /></div>
         <div class="row"><label>Monthly Drawdown (£)</label><input v-model.number="monthlyDrawdown" type="number" min="0" :step="STEP_SMALL" /></div>
       </template>
       <template v-else-if="type === 'income'">

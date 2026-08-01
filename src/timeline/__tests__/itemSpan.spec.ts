@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  computeItemSpan, hasDrawdownPhase, inferredEndMonth, isResizable, resizeItemEnd, shiftItemDates,
+  computeItemSpan, hasContributionPhase, hasDrawdownPhase, inferredEndMonth, isResizable, resizeItemEnd, shiftItemDates,
 } from '../itemSpan'
 import type {
   AssetItem, ExpenditureItem, FinancialEventItem, IncomeItem, InvestmentItem, LiabilityItem,
@@ -113,6 +113,17 @@ describe('shiftItemDates', () => {
     expect(shifted.drawdownStart).toBe('2046-01')
   })
 
+  it('shifts an Investment contributionEnd along with start/drawdownStart', () => {
+    const item: InvestmentItem = {
+      type: 'investment', name: 'SIPP', description: '', start: '2026-01', startValue: 50000, annualGrowthRate: 0.05,
+      monthlyContribution: 500, contributionEnd: '2040-12', drawdownStart: '2045-01',
+    }
+    const shifted = shiftItemDates(item, 12) as InvestmentItem
+    expect(shifted.start).toBe('2027-01')
+    expect(shifted.contributionEnd).toBe('2041-12')
+    expect(shifted.drawdownStart).toBe('2046-01')
+  })
+
   it('shifts a Liability start only (no stored end field to move)', () => {
     const item: LiabilityItem = { type: 'liability', name: 'Mortgage', description: '', start: '2026-01', balance: 200000, annualInterestRate: 0.04, monthlyRepayment: 1200 }
     const shifted = shiftItemDates(item, 2) as LiabilityItem
@@ -160,5 +171,14 @@ describe('hasDrawdownPhase', () => {
     const withoutDrawdown: InvestmentItem = { type: 'investment', name: 'ISA', description: '', start: '2026-01', startValue: 1, annualGrowthRate: 0 }
     expect(hasDrawdownPhase(withDrawdown)).toBe(true)
     expect(hasDrawdownPhase(withoutDrawdown)).toBe(false)
+  })
+})
+
+describe('hasContributionPhase', () => {
+  it('is true only when an Investment has a monthlyContribution set', () => {
+    const withContribution: InvestmentItem = { type: 'investment', name: 'SIPP', description: '', start: '2026-01', startValue: 1, annualGrowthRate: 0, monthlyContribution: 500 }
+    const withoutContribution: InvestmentItem = { type: 'investment', name: 'SIPP', description: '', start: '2026-01', startValue: 1, annualGrowthRate: 0 }
+    expect(hasContributionPhase(withContribution)).toBe(true)
+    expect(hasContributionPhase(withoutContribution)).toBe(false)
   })
 })

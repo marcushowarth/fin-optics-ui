@@ -4,7 +4,7 @@ import { useProjectionStore } from '../stores/projection'
 import type { FinancialItem, ItemType } from '../types'
 import { addMonths, clampYm, monthIndex, monthSpan, pxDeltaToMonths, shortMonthLabel } from '../timeline/dateMath'
 import { buildColumns, COLUMN_WIDTH_PX, GRANULARITIES, pxPerMonth, SNAP_MONTHS, type Granularity } from '../timeline/columnScale'
-import { computeItemSpan, hasDrawdownPhase, isResizable, resizeItemEnd, shiftItemDates, type ItemSpan } from '../timeline/itemSpan'
+import { computeItemSpan, hasContributionPhase, hasDrawdownPhase, isResizable, resizeItemEnd, shiftItemDates, type ItemSpan } from '../timeline/itemSpan'
 
 const store = useProjectionStore()
 
@@ -47,20 +47,37 @@ function barWidthPx(i: number): number {
   return (monthsFromStart(s.end) - monthsFromStart(s.start) + 1) * pxPerMonthValue.value
 }
 
-// Investment drawdown-phase colouring (stretch goal, #946 step 7): split the
-// bar into an accumulation sub-div and a drawdown sub-div at drawdownStart.
-// Drawdown rate is authoritative and the end is inferred (computeItemSpan
-// already resolved that); there's no drawdownEnd field to solve backward from.
-interface PhaseSplit { accumPct: number }
+// Investment phase colouring (#946 step 7, extended by #975 for contributions):
+// split the bar into up to three sub-divs — contribution, gap (pure growth, no
+// flow), drawdown — at contributionEnd/drawdownStart. Both rates are
+// authoritative and the ends are inferred (computeItemSpan already resolved
+// that); there's no drawdownEnd/contributionEnd-implied field to solve
+// backward from. Contribution always yields to drawdown if the two ever
+// overlap, mirroring Investment.iterate()'s own precedence in fin-model.
+interface PhaseSplit { contribPct: number; drawdownPct: number }
 const phaseSplits = computed<(PhaseSplit | null)[]>(() =>
   store.items.map((item, i) => {
-    if (!hasDrawdownPhase(item) || !item.drawdownStart) return null
+    const hasContrib = hasContributionPhase(item)
+    const hasDraw = hasDrawdownPhase(item)
+    if (!hasContrib && !hasDraw) return null
+
     const span = spans.value[i]
-    const totalMonths = monthsFromStart(span.end) - monthsFromStart(span.start) + 1
+    const startIdx = monthsFromStart(span.start)
+    const totalMonths = monthsFromStart(span.end) - startIdx + 1
     if (totalMonths <= 0) return null
-    const accumMonths = monthIndex(item.drawdownStart, store.from) - monthsFromStart(span.start)
-    const pct = Math.min(100, Math.max(0, (accumMonths / totalMonths) * 100))
-    return { accumPct: pct }
+
+    const drawdownIdx = hasDraw ? monthIndex(item.drawdownStart!, store.from) : null
+
+    let contribIdx = startIdx
+    if (hasContrib) {
+      const rawEnd = item.contributionEnd
+        ? monthIndex(item.contributionEnd, store.from)
+        : (drawdownIdx ?? monthsFromStart(span.end) + 1)
+      contribIdx = drawdownIdx !== null ? Math.min(rawEnd, drawdownIdx) : rawEnd
+    }
+
+    const pct = (idx: number) => Math.min(100, Math.max(0, ((idx - startIdx) / totalMonths) * 100))
+    return { contribPct: pct(contribIdx), drawdownPct: pct(drawdownIdx ?? monthsFromStart(span.end) + 1) }
   }),
 )
 
@@ -262,8 +279,13 @@ function itemTitle(item: FinancialItem): string {
                 @mousedown="onBarPointerDown(i, $event)"
               >
                 <template v-if="phaseSplits[i]">
-                  <div class="phase accumulation" :style="{ width: phaseSplits[i]!.accumPct + '%' }"></div>
-                  <div class="phase drawdown" :style="{ left: phaseSplits[i]!.accumPct + '%' }"></div>
+                  <div v-if="hasContributionPhase(item)" class="phase contribution" :style="{ width: phaseSplits[i]!.contribPct + '%' }"></div>
+                  <div
+                    v-if="phaseSplits[i]!.drawdownPct > phaseSplits[i]!.contribPct"
+                    class="phase gap"
+                    :style="{ left: phaseSplits[i]!.contribPct + '%', width: (phaseSplits[i]!.drawdownPct - phaseSplits[i]!.contribPct) + '%' }"
+                  ></div>
+                  <div v-if="hasDrawdownPhase(item)" class="phase drawdown" :style="{ left: phaseSplits[i]!.drawdownPct + '%' }"></div>
                 </template>
                 <span class="bar-label">{{ item.name }}</span>
                 <div
@@ -412,7 +434,8 @@ summary {
 .bar.has-phases { background: transparent; }
 
 .phase { position: absolute; top: 0; bottom: 0; }
-.phase.accumulation { left: 0; background: #5b3a91; }
+.phase.contribution { left: 0; background: #1b7a8c; }
+.phase.gap { background: #5b3a91; }
 .phase.drawdown { right: 0; background: #c9861a; }
 
 .resize-handle {

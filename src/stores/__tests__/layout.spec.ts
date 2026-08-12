@@ -76,6 +76,38 @@ describe('movePanelTo', () => {
   })
 })
 
+describe('autoPositionNetWorth', () => {
+  it('moves networth without marking the layout as customized', () => {
+    const layout = useLayoutStore()
+    layout.autoPositionNetWorth(555)
+    expect(layout.positions.networth.y).toBe(555)
+    expect(layout.isCustomized).toBe(false)
+  })
+
+  it('keeps x unchanged, only sets y', () => {
+    const layout = useLayoutStore()
+    const xBefore = layout.positions.networth.x
+    layout.autoPositionNetWorth(555)
+    expect(layout.positions.networth.x).toBe(xBefore)
+  })
+
+  it('is a no-op once the user has manually moved networth', () => {
+    const layout = useLayoutStore()
+    layout.movePanelTo('networth', 100, 100) // a real user drag
+    layout.autoPositionNetWorth(999)
+    expect(layout.positions.networth).toEqual({ x: 100, y: 100 })
+  })
+
+  it('resumes applying after resetLayout clears the manual-move flag', () => {
+    const layout = useLayoutStore()
+    layout.movePanelTo('networth', 100, 100)
+    layout.resetLayout()
+    layout.autoPositionNetWorth(555)
+    expect(layout.positions.networth.y).toBe(555)
+    expect(layout.isCustomized).toBe(false)
+  })
+})
+
 describe('bringToFront', () => {
   it('moves a panel to the end of the z-order', () => {
     const layout = useLayoutStore()

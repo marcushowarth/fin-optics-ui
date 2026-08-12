@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useProjectionStore } from './stores/projection'
 import { useLayoutStore, type PanelId } from './stores/layout'
 import ItemForm from './components/ItemForm.vue'
@@ -73,7 +73,8 @@ function onHandleMouseDown(id: PanelId, e: MouseEvent) {
   if (!panelEl || !containerEl) return
   const panelRect = panelEl.getBoundingClientRect()
   dragging.value = { id, offsetX: e.clientX - panelRect.left, offsetY: e.clientY - panelRect.top }
-  layout.bringToFront(id)
+  // bringToFront isn't called here — the mousedown bubbles up to the panel's
+  // own handler (onPanelMouseDown), which raises it. Kept in one place.
   window.addEventListener('mousemove', onWindowMouseMove)
   window.addEventListener('mouseup', onWindowMouseUp)
   e.preventDefault()
@@ -81,6 +82,7 @@ function onHandleMouseDown(id: PanelId, e: MouseEvent) {
 function onWindowMouseMove(e: MouseEvent) {
   if (!dragging.value || !layoutEl.value) return
   const { id, offsetX, offsetY } = dragging.value
+  if (id === 'networth') networthAutoPositioned.value = false
   const containerRect = layoutEl.value.getBoundingClientRect()
   layout.movePanelTo(id, e.clientX - containerRect.left - offsetX, e.clientY - containerRect.top - offsetY)
 }
@@ -102,6 +104,11 @@ onBeforeUnmount(() => {
 const resizeStart = new Map<PanelId, { width: number; height: number }>()
 
 function onPanelMouseDown(id: PanelId, e: MouseEvent) {
+  // Raise on any click within the panel, not just its drag handle — so a
+  // panel buried under another is reachable in one click (click its visible
+  // sliver to bring it to front, exposing its handle) instead of having to
+  // move the covering panel out of the way first.
+  layout.bringToFront(id)
   const el = e.currentTarget as HTMLElement
   resizeStart.set(id, { width: el.offsetWidth, height: el.offsetHeight })
 }
@@ -123,16 +130,26 @@ function onPanelMouseUp(id: PanelId, e: MouseEvent) {
 // furthest, otherwise the footer below would overlap free-floating panels.
 const measured = ref<Partial<Record<PanelId, { width: number; height: number }>>>({})
 const observers = new Map<PanelId, ResizeObserver>()
+const observedEls = new Map<PanelId, Element>()
 
 function setPanelEl(id: PanelId, el: Element | null) {
+  // The :ref callback is a fresh inline closure every render, so Vue calls
+  // it again on every reactive update to this panel even though the actual
+  // DOM element hasn't changed — tearing down and recreating the observer
+  // each time, before its async callback ever gets a chance to fire. Skip
+  // the teardown when it's the same element so the observer actually lives
+  // long enough to report a real size.
+  if (observedEls.get(id) === el) return
   observers.get(id)?.disconnect()
   observers.delete(id)
+  observedEls.delete(id)
   if (!(el instanceof HTMLElement)) return
   const ro = new ResizeObserver(([entry]) => {
     measured.value[id] = { width: entry.contentRect.width, height: entry.contentRect.height }
   })
   ro.observe(el)
   observers.set(id, ro)
+  observedEls.set(id, el)
 }
 onBeforeUnmount(() => {
   observers.forEach(ro => ro.disconnect())
@@ -150,6 +167,30 @@ const containerExtent = computed(() => {
   }
   return { height: bottom + 32, width: right + 32 }
 })
+
+const PANEL_GAP = 32
+
+// The static default for Net Worth's y position is only ever a guess —
+// Cash Position's real height varies (solvency warning, expanded info
+// banner) and settles across several resize events as its chart mounts and
+// renders, not in one jump. So this can't be a one-off correction: it keeps
+// tracking Cash's live height and re-nudging Net Worth below it, right up
+// until the user actually drags Net Worth themselves — that's what
+// networthAutoPositioned means, and it's deliberately separate from
+// layout.isCustomized (which the correction's own first move would
+// otherwise flip, locking out any further correction while Cash was still
+// mid-render).
+const networthAutoPositioned = ref(true)
+
+function onResetLayout() {
+  layout.resetLayout()
+  networthAutoPositioned.value = true
+}
+
+watch(() => measured.value.cash?.height, cashHeight => {
+  if (!cashHeight || !networthAutoPositioned.value) return
+  layout.movePanelTo('networth', layout.positions.networth.x, layout.positions.cash.y + cashHeight + PANEL_GAP)
+})
 </script>
 
 <template>
@@ -162,7 +203,7 @@ const containerExtent = computed(() => {
       <button v-if="store.items.length > 0" class="run-btn" :disabled="store.loading" @click="store.runProjection">
         {{ store.loading ? 'Running…' : 'Run Projection' }}
       </button>
-      <a v-if="layout.isCustomized" class="reset-layout-link" @click="layout.resetLayout">Reset layout</a>
+      <a v-if="layout.isCustomized" class="reset-layout-link" @click="onResetLayout">Reset layout</a>
       <p v-if="store.error" class="error inline-error">{{ store.error }}</p>
     </div>
 

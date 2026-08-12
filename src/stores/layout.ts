@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 const STORAGE_KEY = 'fin-optics:layout'
-const LAYOUT_VERSION = 1
+const LAYOUT_VERSION = 2
 
 // The panel set is fixed (#948 is arrangement, not add/remove-panels) — see
 // App.vue for what each id renders.
@@ -13,47 +13,51 @@ export interface PanelSize {
   height?: number
 }
 
+export interface PanelPosition {
+  x: number
+  y: number
+}
+
 interface SavedLayout {
   version: number
-  columns: PanelId[][]
+  positions: Record<PanelId, PanelPosition>
   sizes: Partial<Record<PanelId, PanelSize>>
+  zOrder: PanelId[]
 }
 
 const ALL_PANEL_IDS: PanelId[] = ['settings', 'items', 'cash', 'networth']
 
-// Two columns, matching today's fixed left/right arrangement — panels can
-// move between columns and within a column via movePanel.
-const DEFAULT_COLUMNS: PanelId[][] = [
-  ['settings', 'items'],
-  ['cash', 'networth'],
-]
+// Free-floating default start positions, roughly approximating the old
+// fixed two-column look (settings/items stacked left, charts stacked
+// right) — just a starting point, not enforced afterwards.
+const DEFAULT_POSITIONS: Record<PanelId, PanelPosition> = {
+  settings: { x: 0, y: 0 },
+  items: { x: 0, y: 260 },
+  cash: { x: 520, y: 0 },
+  networth: { x: 520, y: 420 },
+}
 
 export const useLayoutStore = defineStore('layout', () => {
-  const columns = ref<PanelId[][]>(DEFAULT_COLUMNS.map(col => [...col]))
+  const positions = ref<Record<PanelId, PanelPosition>>({ ...DEFAULT_POSITIONS })
   const sizes = ref<Partial<Record<PanelId, PanelSize>>>({})
+  const zOrder = ref<PanelId[]>([...ALL_PANEL_IDS])
 
-  // Move panelId to columns[toColumn] at toIndex, removing it from wherever
-  // it currently lives first (same array-splice pattern as
-  // projection.ts's moveItem). A no-op for an unknown panel id or an
-  // out-of-range column, so a stray drag can't corrupt the layout.
-  function movePanel(panelId: PanelId, toColumn: number, toIndex: number) {
-    if (toColumn < 0 || toColumn >= columns.value.length) return
+  // Move panelId to an arbitrary x/y (free-floating, not slotted into a
+  // column/row). Clamped to non-negative so a panel can't be dragged
+  // off the top/left edge and become unreachable. A no-op for an
+  // unknown panel id so a stray drag can't corrupt the layout.
+  function movePanelTo(panelId: PanelId, x: number, y: number) {
+    if (!(panelId in positions.value)) return
+    positions.value[panelId] = { x: Math.max(0, x), y: Math.max(0, y) }
+  }
 
-    let fromColumn = -1
-    let fromIndex = -1
-    columns.value.forEach((col, ci) => {
-      const idx = col.indexOf(panelId)
-      if (idx !== -1) { fromColumn = ci; fromIndex = idx }
-    })
-    if (fromColumn === -1) return
-    if (fromColumn === toColumn && fromIndex === toIndex) return
-
-    columns.value[fromColumn].splice(fromIndex, 1)
-    let insertIndex = toIndex
-    if (fromColumn === toColumn && fromIndex < toIndex) insertIndex -= 1
-    const target = columns.value[toColumn]
-    insertIndex = Math.max(0, Math.min(insertIndex, target.length))
-    target.splice(insertIndex, 0, panelId)
+  // Panels can overlap when free-floating — bring the one being
+  // interacted with to the front so it's not stuck underneath another.
+  function bringToFront(panelId: PanelId) {
+    const idx = zOrder.value.indexOf(panelId)
+    if (idx === -1) return
+    zOrder.value.splice(idx, 1)
+    zOrder.value.push(panelId)
   }
 
   function setPanelSize(panelId: PanelId, size: PanelSize) {
@@ -68,32 +72,37 @@ export const useLayoutStore = defineStore('layout', () => {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<SavedLayout>
-      if (Array.isArray(parsed.columns) && parsed.columns.length === columns.value.length) {
-        // Guard against a stale saved layout whose panel set doesn't match
-        // the current code (e.g. after a panel was added/removed) — fall
-        // back to defaults rather than rendering a broken layout.
-        const savedIds = parsed.columns.flat()
-        const valid = savedIds.length === ALL_PANEL_IDS.length &&
-          ALL_PANEL_IDS.every(id => savedIds.includes(id))
-        if (valid) columns.value = parsed.columns as PanelId[][]
+      // Guard against a stale saved layout — wrong version (e.g. the old
+      // column-based v1 shape) or a panel set that doesn't match the
+      // current code (after a panel was added/removed) — fall back to
+      // defaults rather than rendering a broken layout.
+      const validPositions = parsed.positions && typeof parsed.positions === 'object' &&
+        ALL_PANEL_IDS.every(id => parsed.positions![id] && typeof parsed.positions![id].x === 'number')
+      if (parsed.version === LAYOUT_VERSION && validPositions) {
+        positions.value = parsed.positions as Record<PanelId, PanelPosition>
+        if (parsed.sizes && typeof parsed.sizes === 'object') sizes.value = parsed.sizes
+        if (Array.isArray(parsed.zOrder) && parsed.zOrder.length === ALL_PANEL_IDS.length &&
+          ALL_PANEL_IDS.every(id => parsed.zOrder!.includes(id))) {
+          zOrder.value = parsed.zOrder as PanelId[]
+        }
       }
-      if (parsed.sizes && typeof parsed.sizes === 'object') sizes.value = parsed.sizes
     }
   } catch {
     // corrupt or unavailable storage — start fresh, non-fatal
   }
 
-  watch([columns, sizes], () => {
+  watch([positions, sizes, zOrder], () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: LAYOUT_VERSION,
-        columns: columns.value,
+        positions: positions.value,
         sizes: sizes.value,
+        zOrder: zOrder.value,
       }))
     } catch {
       // storage full or unavailable — non-fatal
     }
   }, { deep: true })
 
-  return { columns, sizes, movePanel, setPanelSize }
+  return { positions, sizes, zOrder, movePanelTo, bringToFront, setPanelSize }
 })

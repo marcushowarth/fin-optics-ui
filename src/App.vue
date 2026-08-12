@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { useProjectionStore } from './stores/projection'
 import { useLayoutStore, type PanelId } from './stores/layout'
 import ItemForm from './components/ItemForm.vue'
@@ -19,6 +19,8 @@ const layout = useLayoutStore()
 // (not replaced); this just adds a second way to look at the same plan.
 const itemsView = ref<'grid' | 'timeline'>('grid')
 
+const PANEL_IDS: PanelId[] = ['settings', 'items', 'cash', 'networth']
+
 const PANEL_TITLES: Record<PanelId, string> = {
   settings: 'Settings',
   items: 'Plan',
@@ -26,8 +28,6 @@ const PANEL_TITLES: Record<PanelId, string> = {
   networth: 'Net Worth',
 }
 
-// Applied until the user resizes a panel (layout.sizes then takes over) —
-// approximates today's fixed 480px-left / remaining-right two-column split.
 const DEFAULT_WIDTH: Record<PanelId, number> = {
   settings: 480,
   items: 480,
@@ -35,53 +35,73 @@ const DEFAULT_WIDTH: Record<PanelId, number> = {
   networth: 660,
 }
 
+// Settings/Items height should track their own content (the Settings
+// <details> collapsing, the Items list growing/shrinking) rather than
+// staying pinned to a size the user once dragged — so they only get
+// horizontal resize. Chart height doesn't self-adjust the same way (more
+// data doesn't make a taller chart), so manual height resize stays useful
+// there.
+const HEIGHT_RESIZABLE: Record<PanelId, boolean> = {
+  settings: false,
+  items: false,
+  cash: true,
+  networth: true,
+}
+
 function panelStyle(id: PanelId) {
+  const pos = layout.positions[id]
   const size = layout.sizes[id]
   return {
+    left: `${pos.x}px`,
+    top: `${pos.y}px`,
     width: `${size?.width ?? DEFAULT_WIDTH[id]}px`,
     height: size?.height ? `${size.height}px` : undefined,
+    zIndex: layout.zOrder.indexOf(id) + 1,
+    resize: HEIGHT_RESIZABLE[id] ? ('both' as const) : ('horizontal' as const),
   }
 }
 
-// --- Drag-reorder across the two columns — same native HTML5 DnD pattern as
-// PlanGrid.vue's row handle, extended with a column index alongside the
-// in-column index since panels can move between the two columns. ---
-const dragPanel = ref<PanelId | null>(null)
-const dragOverTarget = ref<{ column: number; index: number } | null>(null)
+// --- Free-floating drag-to-move — plain mouse tracking rather than native
+// HTML5 DnD, so the panel follows the cursor in real time instead of only
+// showing a drop-zone highlight (native DnD gave very little "feel" for
+// where things would land). Position is written live so the box visibly
+// follows the cursor; nothing extra needs to happen on mouseup beyond
+// detaching the window listeners — the store's own watch() persists it. ---
+const layoutEl = shallowRef<HTMLElement | null>(null)
+const dragging = ref<{ id: PanelId; offsetX: number; offsetY: number } | null>(null)
 
-function onDragStart(id: PanelId, e: DragEvent) {
-  dragPanel.value = id
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', id)
-  }
-}
-function onDragOverPanel(column: number, index: number, e: DragEvent) {
+function onHandleMouseDown(id: PanelId, e: MouseEvent) {
+  const panelEl = (e.currentTarget as HTMLElement).closest('.panel') as HTMLElement | null
+  const containerEl = layoutEl.value
+  if (!panelEl || !containerEl) return
+  const panelRect = panelEl.getBoundingClientRect()
+  dragging.value = { id, offsetX: e.clientX - panelRect.left, offsetY: e.clientY - panelRect.top }
+  layout.bringToFront(id)
+  window.addEventListener('mousemove', onWindowMouseMove)
+  window.addEventListener('mouseup', onWindowMouseUp)
   e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-  dragOverTarget.value = { column, index }
 }
-function onDragOverColumn(column: number, e: DragEvent) {
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-  dragOverTarget.value = { column, index: layout.columns[column].length }
+function onWindowMouseMove(e: MouseEvent) {
+  if (!dragging.value || !layoutEl.value) return
+  const { id, offsetX, offsetY } = dragging.value
+  const containerRect = layoutEl.value.getBoundingClientRect()
+  layout.movePanelTo(id, e.clientX - containerRect.left - offsetX, e.clientY - containerRect.top - offsetY)
 }
-function onDrop() {
-  if (dragPanel.value && dragOverTarget.value) {
-    layout.movePanel(dragPanel.value, dragOverTarget.value.column, dragOverTarget.value.index)
-  }
-  dragPanel.value = null
-  dragOverTarget.value = null
+function onWindowMouseUp() {
+  dragging.value = null
+  window.removeEventListener('mousemove', onWindowMouseMove)
+  window.removeEventListener('mouseup', onWindowMouseUp)
 }
-function onDragEnd() {
-  dragPanel.value = null
-  dragOverTarget.value = null
-}
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onWindowMouseMove)
+  window.removeEventListener('mouseup', onWindowMouseUp)
+})
 
-// --- Resize — native CSS `resize: both` on the panel box, persisted on
-// release. Compare the box size at mousedown vs mouseup: a plain click
-// (e.g. a button inside the panel) leaves the size unchanged so nothing gets
-// persisted; only an actual drag on the resize handle changes it.
+// --- Resize — native CSS `resize` on the panel box (both axes for chart
+// panels, width-only for settings/items — see HEIGHT_RESIZABLE above),
+// persisted on release. Compare the box size at mousedown vs mouseup: a
+// plain click (e.g. a button inside the panel) leaves the size unchanged so
+// nothing gets persisted; only an actual drag on the resize handle does. ---
 const resizeStart = new Map<PanelId, { width: number; height: number }>()
 
 function onPanelMouseDown(id: PanelId, e: MouseEvent) {
@@ -99,6 +119,40 @@ function onPanelMouseUp(id: PanelId, e: MouseEvent) {
     layout.setPanelSize(id, { width, height })
   }
 }
+
+// --- Container extent — absolutely-positioned children don't contribute to
+// a parent's natural height/width, so track each panel's live rendered box
+// via ResizeObserver and size the container to fit whichever panel extends
+// furthest, otherwise the footer below would overlap free-floating panels.
+const measured = ref<Partial<Record<PanelId, { width: number; height: number }>>>({})
+const observers = new Map<PanelId, ResizeObserver>()
+
+function setPanelEl(id: PanelId, el: Element | null) {
+  observers.get(id)?.disconnect()
+  observers.delete(id)
+  if (!(el instanceof HTMLElement)) return
+  const ro = new ResizeObserver(([entry]) => {
+    measured.value[id] = { width: entry.contentRect.width, height: entry.contentRect.height }
+  })
+  ro.observe(el)
+  observers.set(id, ro)
+}
+onBeforeUnmount(() => {
+  observers.forEach(ro => ro.disconnect())
+  observers.clear()
+})
+
+const containerExtent = computed(() => {
+  let bottom = 0
+  let right = 0
+  for (const id of PANEL_IDS) {
+    const pos = layout.positions[id]
+    const size = measured.value[id]
+    bottom = Math.max(bottom, pos.y + (size?.height ?? 200))
+    right = Math.max(right, pos.x + (size?.width ?? DEFAULT_WIDTH[id]))
+  }
+  return { height: bottom + 32, width: right + 32 }
+})
 </script>
 
 <template>
@@ -114,39 +168,36 @@ function onPanelMouseUp(id: PanelId, e: MouseEvent) {
       <p v-if="store.error" class="error inline-error">{{ store.error }}</p>
     </div>
 
-    <div class="layout">
+    <div
+      ref="layoutEl" class="layout"
+      :style="{ height: `${containerExtent.height}px`, minWidth: `${containerExtent.width}px` }"
+    >
       <div
-        v-for="(colIds, ci) in layout.columns" :key="ci" class="panel-column"
-        @dragover="onDragOverColumn(ci, $event)" @drop="onDrop"
+        v-for="id in PANEL_IDS" :key="id" class="panel"
+        :ref="el => setPanelEl(id, el as Element | null)"
+        :style="panelStyle(id)"
+        :class="{ dragging: dragging?.id === id }"
+        @mousedown="onPanelMouseDown(id, $event)" @mouseup="onPanelMouseUp(id, $event)"
       >
-        <p v-if="colIds.length === 0" class="empty-column">Drop a panel here</p>
-        <div
-          v-for="(id, pi) in colIds" :key="id" class="panel"
-          :style="panelStyle(id)"
-          :class="{ dragging: dragPanel === id, 'drag-over': dragOverTarget?.column === ci && dragOverTarget?.index === pi && dragPanel !== id }"
-          @dragover.stop="onDragOverPanel(ci, pi, $event)" @drop.stop="onDrop" @dragend="onDragEnd"
-          @mousedown="onPanelMouseDown(id, $event)" @mouseup="onPanelMouseUp(id, $event)"
-        >
-          <div class="panel-header">
-            <span class="handle" draggable="true" @dragstart="onDragStart(id, $event)" aria-label="Drag to reorder">⠿</span>
-            <span class="panel-title">{{ PANEL_TITLES[id] }}</span>
-          </div>
-          <div class="panel-body">
-            <template v-if="id === 'settings'">
-              <SettingsPanel />
-            </template>
-            <template v-else-if="id === 'items'">
-              <div class="view-toggle">
-                <button class="view-toggle-btn" :class="{ active: itemsView === 'grid' }" @click="itemsView = 'grid'">Details</button>
-                <button class="view-toggle-btn" :class="{ active: itemsView === 'timeline' }" @click="itemsView = 'timeline'">Timeline</button>
-              </div>
-              <PlanGrid v-if="itemsView === 'grid'" />
-              <PlanTimeline v-else />
-              <button class="add-item-btn" @click="store.startAdd">+ Add Items</button>
-            </template>
-            <CashPositionChart v-else-if="id === 'cash'" />
-            <NetWorthChart v-else-if="id === 'networth'" />
-          </div>
+        <div class="panel-header">
+          <span class="handle" aria-label="Drag to move" @mousedown="onHandleMouseDown(id, $event)">⠿</span>
+          <span class="panel-title">{{ PANEL_TITLES[id] }}</span>
+        </div>
+        <div class="panel-body">
+          <template v-if="id === 'settings'">
+            <SettingsPanel />
+          </template>
+          <template v-else-if="id === 'items'">
+            <div class="view-toggle">
+              <button class="view-toggle-btn" :class="{ active: itemsView === 'grid' }" @click="itemsView = 'grid'">Details</button>
+              <button class="view-toggle-btn" :class="{ active: itemsView === 'timeline' }" @click="itemsView = 'timeline'">Timeline</button>
+            </div>
+            <PlanGrid v-if="itemsView === 'grid'" />
+            <PlanTimeline v-else />
+            <button class="add-item-btn" @click="store.startAdd">+ Add Items</button>
+          </template>
+          <CashPositionChart v-else-if="id === 'cash'" />
+          <NetWorthChart v-else-if="id === 'networth'" />
         </div>
       </div>
     </div>
@@ -185,28 +236,18 @@ h1 { margin: 0 0 0.25rem; }
 .run-btn:disabled { background: #999; cursor: not-allowed; }
 .error { color: #c00; font-size: 0.9rem; }
 
-.layout { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
-.panel-column { display: flex; flex-direction: column; gap: 1rem; min-width: 12rem; }
-.empty-column {
-  margin: 0;
-  padding: 1rem;
-  border: 1px dashed #ccc;
-  border-radius: 6px;
-  color: #999;
-  font-size: 0.85rem;
-  text-align: center;
-}
+.layout { position: relative; }
 
 .panel {
+  position: absolute;
   display: flex;
   flex-direction: column;
-  resize: both;
   overflow: auto;
   min-width: 16rem;
   min-height: 4rem;
+  background: transparent;
 }
-.panel.dragging { opacity: 0.4; }
-.panel.drag-over { outline: 2px dashed #1a5c3a; outline-offset: 3px; }
+.panel.dragging { opacity: 0.6; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); }
 .panel-header {
   display: flex;
   align-items: center;

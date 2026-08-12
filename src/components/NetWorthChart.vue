@@ -28,25 +28,28 @@ const netWorthItemSeries = computed(() => {
 </script>
 
 <template>
-  <div v-if="store.result" class="chart-panel">
-    <div class="chart-header">
-      <div>
-        <h3 class="chart-title">Net Worth</h3>
-        <p class="chart-sub">Everything you own minus everything you owe, projected over time.</p>
+  <div class="chart-panel">
+    <template v-if="store.result">
+      <div class="chart-header">
+        <div>
+          <h3 class="chart-title">Net Worth</h3>
+          <p class="chart-sub">Everything you own minus everything you owe, projected over time.</p>
+        </div>
+        <button class="granular-btn" :class="{ active: granular }" @click="granular = !granular">
+          {{ granular ? 'Total' : 'Breakdown' }}
+        </button>
       </div>
-      <button class="granular-btn" :class="{ active: granular }" @click="granular = !granular">
-        {{ granular ? 'Total' : 'Breakdown' }}
-      </button>
-    </div>
-    <ProjectionChart
-      :key="granular ? 'nw-items' : 'nw-total'"
-      :months="months"
-      :series="granular ? netWorthItemSeries : netWorthSeries"
-      :primary-only="!granular"
-      :stacked="granular"
-      :zero-line="granular"
-      :age-from="ageFrom"
-    />
+      <ProjectionChart
+        :key="granular ? 'nw-items' : 'nw-total'"
+        :months="months"
+        :series="granular ? netWorthItemSeries : netWorthSeries"
+        :primary-only="!granular"
+        :stacked="granular"
+        :zero-line="granular"
+        :age-from="ageFrom"
+      />
+    </template>
+    <p v-else class="chart-placeholder">Run a projection to see this chart.</p>
   </div>
 </template>
 
@@ -76,4 +79,5 @@ const netWorthItemSeries = computed(() => {
 }
 .granular-btn:hover { border-color: #1a5c3a; color: #1a5c3a; }
 .granular-btn.active { background: #1a5c3a; border-color: #1a5c3a; color: #fff; }
+.chart-placeholder { margin: 0; color: #999; font-size: 0.85rem; }
 </style>

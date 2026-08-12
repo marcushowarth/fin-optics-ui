@@ -44,61 +44,64 @@ const cashFlowItemSeries = computed(() => {
 </script>
 
 <template>
-  <div v-if="store.result" class="chart-panel">
-    <div class="chart-header">
-      <div>
-        <h3 class="chart-title">Cash Position</h3>
-        <p class="chart-sub">
-          {{ cashGranular
-            ? 'Monthly cash flow per item — income adds, expenditure/repayments/drawdowns subtract.'
-            : 'Liquid cash running balance — shaded red below zero.' }}
-        </p>
+  <div class="chart-panel">
+    <template v-if="store.result">
+      <div class="chart-header">
+        <div>
+          <h3 class="chart-title">Cash Position</h3>
+          <p class="chart-sub">
+            {{ cashGranular
+              ? 'Monthly cash flow per item — income adds, expenditure/repayments/drawdowns subtract.'
+              : 'Liquid cash running balance — shaded red below zero.' }}
+          </p>
+        </div>
+        <button
+          class="granular-btn"
+          :class="{ active: cashGranular }"
+          @click="cashGranular = !cashGranular"
+        >
+          {{ cashGranular ? 'Total' : 'Breakdown' }}
+        </button>
       </div>
-      <button
-        class="granular-btn"
-        :class="{ active: cashGranular }"
-        @click="cashGranular = !cashGranular"
-      >
-        {{ cashGranular ? 'Total' : 'Breakdown' }}
-      </button>
-    </div>
-    <ProjectionChart
-      :key="cashGranular ? 'cash-items' : 'cash-total'"
-      :months="months"
-      :series="cashGranular ? cashFlowItemSeries : cashSeries"
-      :warnings="warningMonths"
-      :zero-line="true"
-      :primary-only="!cashGranular"
-      :stacked="cashGranular"
-      :liquidity-colors="!cashGranular"
-      :value-unit="cashGranular ? '/mo' : undefined"
-      :age-from="ageFrom"
-    />
+      <ProjectionChart
+        :key="cashGranular ? 'cash-items' : 'cash-total'"
+        :months="months"
+        :series="cashGranular ? cashFlowItemSeries : cashSeries"
+        :warnings="warningMonths"
+        :zero-line="true"
+        :primary-only="!cashGranular"
+        :stacked="cashGranular"
+        :liquidity-colors="!cashGranular"
+        :value-unit="cashGranular ? '/mo' : undefined"
+        :age-from="ageFrom"
+      />
 
-    <p v-if="firstBreach" class="solvency-warning">
-      ⚠ Cash goes negative in {{ warnings.length }} month{{ warnings.length === 1 ? '' : 's' }} —
-      first breach {{ firstBreach.month }} ({{ money(firstBreach.cashPosition) }})
-    </p>
+      <p v-if="firstBreach" class="solvency-warning">
+        ⚠ Cash goes negative in {{ warnings.length }} month{{ warnings.length === 1 ? '' : 's' }} —
+        first breach {{ firstBreach.month }} ({{ money(firstBreach.cashPosition) }})
+      </p>
 
-    <div v-if="!infoHidden" class="scenario-note">
-      <span class="info-text">
-        <strong>Nominal</strong> is the projected value in the pounds of each future year.
-        <template v-if="infoExpanded">
-          <strong>Real</strong> lines restate it in <em>today's</em> money after inflation, under three
-          assumptions — <strong>low</strong>, <strong>base</strong> and <strong>high</strong> annual
-          inflation — so you can see how much spending power the headline figure really holds.
-          Charts open on Nominal only; click a name in the legend to add a scenario.
-        </template>
-      </span>
-      <span class="info-controls">
-        <a v-if="!infoExpanded" class="info-link" @click="infoExpanded = true">[show more]</a>
-        <a v-else class="info-link" @click="infoExpanded = false">[show less]</a>
-        · <a class="info-link" @click="hideInfo">[hide]</a>
-      </span>
-    </div>
-    <p v-else class="info-restore">
-      <a class="info-link" @click="showInfo">ℹ Show explanation</a>
-    </p>
+      <div v-if="!infoHidden" class="scenario-note">
+        <span class="info-text">
+          <strong>Nominal</strong> is the projected value in the pounds of each future year.
+          <template v-if="infoExpanded">
+            <strong>Real</strong> lines restate it in <em>today's</em> money after inflation, under three
+            assumptions — <strong>low</strong>, <strong>base</strong> and <strong>high</strong> annual
+            inflation — so you can see how much spending power the headline figure really holds.
+            Charts open on Nominal only; click a name in the legend to add a scenario.
+          </template>
+        </span>
+        <span class="info-controls">
+          <a v-if="!infoExpanded" class="info-link" @click="infoExpanded = true">[show more]</a>
+          <a v-else class="info-link" @click="infoExpanded = false">[show less]</a>
+          · <a class="info-link" @click="hideInfo">[hide]</a>
+        </span>
+      </div>
+      <p v-else class="info-restore">
+        <a class="info-link" @click="showInfo">ℹ Show explanation</a>
+      </p>
+    </template>
+    <p v-else class="chart-placeholder">Run a projection to see this chart.</p>
   </div>
 </template>
 
@@ -140,6 +143,7 @@ const cashFlowItemSeries = computed(() => {
 .info-link { color: #3a7bc8; cursor: pointer; text-decoration: none; }
 .info-link:hover { text-decoration: underline; }
 .info-restore { margin: 0; font-size: 0.8rem; }
+.chart-placeholder { margin: 0; color: #999; font-size: 0.85rem; }
 .chart-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
 .chart-title { margin: 0; font-size: 1.05rem; }
 .chart-sub { margin: 0.15rem 0 0.4rem; color: #777; font-size: 0.8rem; }

@@ -45,13 +45,35 @@ export const useLayoutStore = defineStore('layout', () => {
   const sizes = ref<Partial<Record<PanelId, PanelSize>>>({})
   const zOrder = ref<PanelId[]>([...ALL_PANEL_IDS])
 
+  // Net Worth's y position is auto-managed (kept below Cash Position's real
+  // height, which the static default can only ever guess at) right up until
+  // the user actually drags it — this tracks that distinction so
+  // isCustomized doesn't count the auto-adjustment as a customization. That
+  // matters concretely: without it, "Reset layout" could never resolve to
+  // "not customized" (the auto-adjustment immediately differs from the
+  // literal static default again), so the link never went away and kept
+  // inviting another click — each one re-shuffling the layout and hammering
+  // the charts' autoresize until they broke.
+  const networthManuallyPositioned = ref(false)
+
   // Move panelId to an arbitrary x/y (free-floating, not slotted into a
   // column/row). Clamped to non-negative so a panel can't be dragged
   // off the top/left edge and become unreachable. A no-op for an
-  // unknown panel id so a stray drag can't corrupt the layout.
+  // unknown panel id so a stray drag can't corrupt the layout. This is the
+  // real user-drag path — see autoPositionNetWorth for the managed one.
   function movePanelTo(panelId: PanelId, x: number, y: number) {
     if (!(panelId in positions.value)) return
     positions.value[panelId] = { x: Math.max(0, x), y: Math.max(0, y) }
+    if (panelId === 'networth') networthManuallyPositioned.value = true
+  }
+
+  // The managed counterpart to movePanelTo, used only by the app's own
+  // "keep Net Worth below Cash" correction — deliberately does not count as
+  // customization, and deliberately stops applying once the user has
+  // dragged Net Worth themselves (until the next reset).
+  function autoPositionNetWorth(y: number) {
+    if (networthManuallyPositioned.value) return
+    positions.value.networth = { ...positions.value.networth, y: Math.max(0, y) }
   }
 
   // Panels can overlap when free-floating — bring the one being
@@ -81,16 +103,22 @@ export const useLayoutStore = defineStore('layout', () => {
     ALL_PANEL_IDS.some(id => {
       const p = positions.value[id]
       const d = DEFAULT_POSITIONS[id]
+      // Net Worth's y is allowed to differ from the static default without
+      // counting as customized, as long as it's still the auto-positioning
+      // (not a manual drag) that put it there — see networthManuallyPositioned.
+      if (id === 'networth' && !networthManuallyPositioned.value) return p.x !== d.x
       return p.x !== d.x || p.y !== d.y
     })
   )
 
   // Escape hatch for "I've messed up the layout" — back to the default
-  // positions/sizes/stacking order in one step.
+  // positions/sizes/stacking order in one step. Also clears the manual-move
+  // flag so Net Worth's auto-positioning resumes.
   function resetLayout() {
     positions.value = { ...DEFAULT_POSITIONS }
     sizes.value = {}
     zOrder.value = [...ALL_PANEL_IDS]
+    networthManuallyPositioned.value = false
   }
 
   // ---- localStorage persistence ----
@@ -133,5 +161,5 @@ export const useLayoutStore = defineStore('layout', () => {
     }
   }, { deep: true })
 
-  return { positions, sizes, zOrder, isCustomized, movePanelTo, bringToFront, setPanelSize, resetLayout }
+  return { positions, sizes, zOrder, isCustomized, movePanelTo, autoPositionNetWorth, bringToFront, setPanelSize, resetLayout }
 })

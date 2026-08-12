@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useProjectionStore } from './stores/projection'
 import { useLayoutStore, type PanelId } from './stores/layout'
 import ItemForm from './components/ItemForm.vue'
@@ -82,8 +82,9 @@ function onHandleMouseDown(id: PanelId, e: MouseEvent) {
 function onWindowMouseMove(e: MouseEvent) {
   if (!dragging.value || !layoutEl.value) return
   const { id, offsetX, offsetY } = dragging.value
-  if (id === 'networth') networthAutoPositioned.value = false
   const containerRect = layoutEl.value.getBoundingClientRect()
+  // movePanelTo itself records a manual move for 'networth', which is what
+  // permanently stops positionNetWorthBelowCash's auto-adjustment below.
   layout.movePanelTo(id, e.clientX - containerRect.left - offsetX, e.clientY - containerRect.top - offsetY)
 }
 function onWindowMouseUp() {
@@ -171,26 +172,36 @@ const containerExtent = computed(() => {
 const PANEL_GAP = 32
 
 // The static default for Net Worth's y position is only ever a guess —
-// Cash Position's real height varies (solvency warning, expanded info
-// banner) and settles across several resize events as its chart mounts and
-// renders, not in one jump. So this can't be a one-off correction: it keeps
-// tracking Cash's live height and re-nudging Net Worth below it, right up
-// until the user actually drags Net Worth themselves — that's what
-// networthAutoPositioned means, and it's deliberately separate from
-// layout.isCustomized (which the correction's own first move would
-// otherwise flip, locking out any further correction while Cash was still
-// mid-render).
-const networthAutoPositioned = ref(true)
+// Cash Position's real height varies (solvency warning, expanded/hidden
+// info banner). Tracking it via the ResizeObserver-fed `measured` value
+// proved unreliable in practice — it can catch a size mid-render (e.g. the
+// chart's own canvas settled but the "Show explanation" line below it
+// hadn't painted yet), landing Net Worth just under the chart instead of
+// under the whole panel. So this measures directly instead: getBoundingClientRect()
+// on the real DOM node, after nextTick() guarantees Vue has finished
+// patching every v-if branch — deterministic, not dependent on when a
+// ResizeObserver callback happens to fire.
+//
+// Runs right after a projection completes and whenever the layout is
+// reset. Goes through layout.autoPositionNetWorth rather than movePanelTo —
+// that's the store's own gate against overriding a manual drag, and
+// crucially it doesn't count as customization, so "Reset layout" can
+// actually resolve to "not customized" and stay that way instead of
+// re-appearing after every reset (which was inviting repeated clicks, each
+// one reshuffling the layout and hammering the charts' autoresize).
+async function positionNetWorthBelowCash() {
+  await nextTick()
+  const cashHeight = observedEls.get('cash')?.getBoundingClientRect().height
+  if (!cashHeight) return
+  layout.autoPositionNetWorth(layout.positions.cash.y + cashHeight + PANEL_GAP)
+}
 
 function onResetLayout() {
   layout.resetLayout()
-  networthAutoPositioned.value = true
+  positionNetWorthBelowCash()
 }
 
-watch(() => measured.value.cash?.height, cashHeight => {
-  if (!cashHeight || !networthAutoPositioned.value) return
-  layout.movePanelTo('networth', layout.positions.networth.x, layout.positions.cash.y + cashHeight + PANEL_GAP)
-})
+watch(() => store.result, () => positionNetWorthBelowCash())
 </script>
 
 <template>

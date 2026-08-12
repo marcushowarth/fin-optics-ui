@@ -19,31 +19,28 @@ const layout = useLayoutStore()
 // (not replaced); this just adds a second way to look at the same plan.
 const itemsView = ref<'grid' | 'timeline'>('grid')
 
-const PANEL_IDS: PanelId[] = ['settings', 'items', 'cash', 'networth']
+const PANEL_IDS: PanelId[] = ['plan', 'cash', 'networth']
 
 const PANEL_TITLES: Record<PanelId, string> = {
-  settings: 'Settings',
-  items: 'Plan',
+  plan: 'Plan',
   cash: 'Cash Position',
   networth: 'Net Worth',
 }
 
 const DEFAULT_WIDTH: Record<PanelId, number> = {
-  settings: 480,
-  items: 480,
+  plan: 480,
   cash: 660,
   networth: 660,
 }
 
-// Settings/Items height should track their own content (the Settings
-// <details> collapsing, the Items list growing/shrinking) rather than
-// staying pinned to a size the user once dragged — so they only get
+// Plan's height should track its own content (the Settings/Items <details>
+// sections collapsing, the Items list growing/shrinking) rather than
+// staying pinned to a size the user once dragged — so it only gets
 // horizontal resize. Chart height doesn't self-adjust the same way (more
 // data doesn't make a taller chart), so manual height resize stays useful
 // there.
 const HEIGHT_RESIZABLE: Record<PanelId, boolean> = {
-  settings: false,
-  items: false,
+  plan: false,
   cash: true,
   networth: true,
 }
@@ -158,13 +155,14 @@ const containerExtent = computed(() => {
 <template>
   <div class="app">
     <h1>FIN OPTICS</h1>
-    <p class="tagline">Financial projection engine — items in, 30-year view out.</p>
+    <p class="tagline">Financial projection engine — items in, financial horizon out.</p>
 
     <div class="top-bar">
       <PlanToolbar />
       <button v-if="store.items.length > 0" class="run-btn" :disabled="store.loading" @click="store.runProjection">
         {{ store.loading ? 'Running…' : 'Run Projection' }}
       </button>
+      <a v-if="layout.isCustomized" class="reset-layout-link" @click="layout.resetLayout">Reset layout</a>
       <p v-if="store.error" class="error inline-error">{{ store.error }}</p>
     </div>
 
@@ -184,10 +182,8 @@ const containerExtent = computed(() => {
           <span class="panel-title">{{ PANEL_TITLES[id] }}</span>
         </div>
         <div class="panel-body">
-          <template v-if="id === 'settings'">
+          <template v-if="id === 'plan'">
             <SettingsPanel />
-          </template>
-          <template v-else-if="id === 'items'">
             <div class="view-toggle">
               <button class="view-toggle-btn" :class="{ active: itemsView === 'grid' }" @click="itemsView = 'grid'">Details</button>
               <button class="view-toggle-btn" :class="{ active: itemsView === 'timeline' }" @click="itemsView = 'timeline'">Timeline</button>
@@ -235,6 +231,8 @@ h1 { margin: 0 0 0.25rem; }
 }
 .run-btn:disabled { background: #999; cursor: not-allowed; }
 .error { color: #c00; font-size: 0.9rem; }
+.reset-layout-link { color: #3a7bc8; cursor: pointer; text-decoration: none; font-size: 0.85rem; }
+.reset-layout-link:hover { text-decoration: underline; }
 
 .layout { position: relative; }
 
